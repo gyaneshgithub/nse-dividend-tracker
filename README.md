@@ -1,5 +1,7 @@
 # NSE Dividend Tracker
 
+[![CI](https://github.com/gyaneshgithub/nse-dividend-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/gyaneshgithub/nse-dividend-tracker/actions/workflows/ci.yml)
+
 A local-first dividend income tracker for Indian (NSE) stocks. It fetches
 dividend history, stores the quantity you held in each quarter, and calculates
 annual and monthly income per stock, per quarter, and per year.
