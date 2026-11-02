@@ -108,14 +108,19 @@ def main() -> int:
         try:
             with tempfile.TemporaryDirectory(prefix="dividend-chroma-") as tmp:
                 client = imported["chromadb"].PersistentClient(path=tmp)
-                collection = client.get_or_create_collection("setup_check")
-                collection.add(
-                    ids=["probe"],
-                    documents=["setup probe"],
-                    embeddings=[[0.0] * 384],
-                )
-                if collection.count() != 1:
-                    raise RuntimeError("unexpected collection count")
+                try:
+                    collection = client.get_or_create_collection("setup_check")
+                    collection.add(
+                        ids=["probe"],
+                        documents=["setup probe"],
+                        embeddings=[[0.0] * 384],
+                    )
+                    if collection.count() != 1:
+                        raise RuntimeError("unexpected collection count")
+                finally:
+                    # Windows keeps the SQLite files locked until the client
+                    # stops, which would make TemporaryDirectory cleanup fail.
+                    client.close()
             _ok("ChromaDB can create and read a local database")
         except Exception as exc:
             _fail(f"ChromaDB self-test failed: {exc}")

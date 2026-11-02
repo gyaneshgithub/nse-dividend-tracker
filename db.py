@@ -67,6 +67,13 @@ def reset_connection():
     """
     global _client, _holdings_col, _payouts_col, _meta_col
     with _lock:
+        if _client is not None:
+            try:
+                # Release SQLite handles immediately; Windows otherwise keeps
+                # temporary test directories locked after the test finishes.
+                _client.close()
+            except Exception:
+                pass
         _client = None
         _holdings_col = None
         _payouts_col = None
