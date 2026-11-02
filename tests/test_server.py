@@ -49,6 +49,8 @@ def test_save_load_delete_flow(client):
     response = client.get("/api/analysis?year=2026")
     payload = response.get_json()
     assert payload["totalIncome"] == 30.0
+    assert payload["projectedNextYearIncome"] == 45.0
+    assert payload["projectedIncreasePct"] == 50.0
 
     response = client.delete("/api/portfolio/INFY")
     assert response.status_code == 200

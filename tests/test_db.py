@@ -99,6 +99,33 @@ def test_analysis_uses_quarter_quantities(db):
     ]
 
 
+def test_analysis_projects_next_year_from_peak_quarters(db):
+    db.save_holding(
+        holding(
+            quarters={"2026-Q1": 10, "2026-Q2": 4, "2026-Q3": 12},
+            dividends=[
+                {"date": "2026-02-01", "amount": 2.0},
+                {"date": "2026-05-01", "amount": 2.5},
+            ],
+        )
+    )
+    db.save_holding(
+        holding(
+            "TCS",
+            quarters={"2026-Q4": 5},
+            dividends=[{"date": "2026-11-01", "amount": 1.0}],
+        )
+    )
+
+    result = db.analysis("2026")
+
+    # INFY: max(10, 4, 12) × (2.0 + 2.5) = 54; TCS: 5 × 1.0 = 5.
+    assert result["totalIncome"] == 35.0
+    assert result["projectedNextYearIncome"] == 59.0
+    assert result["projectedIncreasePct"] == 68.57
+    assert db.analysis("all")["projectedNextYearIncome"] is None
+
+
 def test_backup_mirror_restores_empty_database(db, tmp_path, monkeypatch):
     db.save_holding(holding())
     assert db.BACKUP_FILE.endswith("portfolio.json")

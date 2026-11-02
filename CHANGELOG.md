@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Added
+
+- **Projected next year income** dashboard card. For each stock it uses
+  `max(Q1, Q2, Q3, Q4) × total dividend per share` for the selected year, sums
+  the result, and highlights the percentage change versus that year's annual
+  income. The same figures are exposed by `/api/analysis` as
+  `projectedNextYearIncome` and `projectedIncreasePct`.
+
 ## [1.0.0] — 2026-11-02
 
 First public release.

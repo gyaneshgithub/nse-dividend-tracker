@@ -20,6 +20,9 @@ are included in this repository.*
 - **Live NSE dividend history** from stockanalysis.com, cached locally.
 - **Quarterly quantities** so income follows the shares you actually held in
   each quarter, not just today's holding.
+- **Projected next year income** — the sum of each stock's peak quarterly
+  quantity × its total dividend per share, with the change versus the selected
+  year highlighted.
 - **Automatic year rollover** — a new calendar year appears on 1 January with
   blank quantities; earlier years are preserved.
 - **Bulk import** from a spreadsheet or CSV: ticker plus Q1–Q4 quantities.

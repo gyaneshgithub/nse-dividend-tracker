@@ -31,6 +31,10 @@
     .value.orange { color: #ff9f0a; }
     .value.green { color: #30d158; }
     .value.blue { color: #64d2ff; }
+    .value.purple { color: #bf5af2; }
+    .stat-card .delta { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 8px; background: #3a3a3c; color: #8e8e93; }
+    .stat-card .delta.up { color: #30d158; background: rgba(48, 209, 88, 0.14); }
+    .stat-card .delta.down { color: #ff6961; background: rgba(255, 105, 97, 0.14); }
 
     .add-form { display: flex; gap: 8px; margin: 4px 0 8px; flex-wrap: wrap; }
     .add-form input[type="text"] { flex: 1; min-width: 220px; background: #2c2c2e; border: 1px solid #48484a; border-radius: 12px; padding: 11px 14px; color: #fff; font-size: 15px; }
@@ -173,6 +177,7 @@
     <section class="summary">
       <div class="stat-card" title="Number of stocks in your tracker"><div class="label">Holdings</div><div class="value" id="sum-count">0</div></div>
       <div class="stat-card" title="Dividend income for the selected year, based on the quantity held each quarter"><div class="label" id="sum-income-label">Annual income</div><div class="value orange" id="sum-income">—</div></div>
+      <div class="stat-card" id="projection-card" title="Select a specific year to project next year's income from its quarterly quantities and total dividends."><div class="label">Projected next year income</div><div class="value purple" id="sum-projected">—</div><div class="delta" id="sum-projected-delta">Select a year</div></div>
       <div class="stat-card" title="Average monthly dividend income for the selected year — annual income divided by 12. Actual payouts arrive when dividends are paid."><div class="label" id="sum-monthly-label">Monthly income</div><div class="value blue" id="sum-monthly">—</div></div>
       <div class="stat-card" title="Average trailing 12-month dividend yield across stocks with a known price"><div class="label">Avg. yield (TTM)</div><div class="value green" id="sum-yield">—</div></div>
     </section>
@@ -309,6 +314,9 @@
       sumCount: document.getElementById('sum-count'),
       sumIncome: document.getElementById('sum-income'),
       sumIncomeLabel: document.getElementById('sum-income-label'),
+      projectionCard: document.getElementById('projection-card'),
+      sumProjected: document.getElementById('sum-projected'),
+      sumProjectedDelta: document.getElementById('sum-projected-delta'),
       sumMonthly: document.getElementById('sum-monthly'),
       sumMonthlyLabel: document.getElementById('sum-monthly-label'),
       sumYield: document.getElementById('sum-yield'),
@@ -767,6 +775,19 @@
       }, 0);
     }
 
+    function maxQuarterQtyFor(h, year) {
+      if (year === 'all') return 0;
+      return Math.max(...[1, 2, 3, 4].map(q => qtyForQuarter(h, `${year}-Q${q}`)));
+    }
+
+    // PROJECTED NEXT YEAR INCOME assumes the largest quantity held in any
+    // quarter of `year` is held for all of next year, and the same total
+    // dividend per share is paid again: Σ max(Q1..Q4) × total dividend.
+    function projectedIncomeFor(h, year) {
+      if (year === 'all') return 0;
+      return maxQuarterQtyFor(h, year) * totalDividendFor(h, year);
+    }
+
     function ttmPerShare(h) {
       const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 1);
       const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -1154,6 +1175,30 @@
       el.sumIncomeLabel.textContent = year === 'all' ? 'Total income (all years)' : 'Annual income ' + year;
       const total = state.holdings.reduce((s, h) => s + incomeFor(h, year), 0);
       el.sumIncome.textContent = state.holdings.length ? fmtMoney(total) : '—';
+
+      const projected = year === 'all'
+        ? null
+        : state.holdings.reduce((s, h) => s + projectedIncomeFor(h, year), 0);
+      el.projectionCard.title = year === 'all'
+        ? 'Select a specific year to project next year\'s income from its quarterly quantities and total dividends.'
+        : `Projected ${Number(year) + 1} income = Σ (highest quantity held in any quarter of ${year} × total dividend per share paid in ${year}). Assumes the peak quantity is held all year and the same dividends repeat.`;
+      el.sumProjected.textContent = (projected === null || !state.holdings.length) ? '—' : fmtMoney(projected);
+      el.sumProjectedDelta.className = 'delta';
+      if (projected === null) {
+        el.sumProjectedDelta.textContent = 'Select a year';
+      } else if (!state.holdings.length) {
+        el.sumProjectedDelta.textContent = 'No holdings yet';
+      } else if (!(total > 0)) {
+        el.sumProjectedDelta.textContent = 'No income for ' + year;
+      } else {
+        const pct = ((projected - total) / total) * 100;
+        const direction = pct > 0.005 ? 'up' : (pct < -0.005 ? 'down' : 'flat');
+        if (direction !== 'flat') el.sumProjectedDelta.classList.add(direction);
+        const arrow = direction === 'up' ? '▲ ' : (direction === 'down' ? '▼ ' : '');
+        const sign = direction === 'up' ? '+' : (direction === 'down' ? '-' : '');
+        el.sumProjectedDelta.textContent = `${arrow}${sign}${Math.abs(pct).toFixed(1)}% vs ${year}`;
+      }
+
       el.sumMonthlyLabel.textContent = year === 'all' ? 'Monthly income' : 'Monthly income ' + year;
       el.sumMonthly.textContent = state.holdings.length && year !== 'all' ? fmtMoney(total / 12) : '—';
       const yields = state.holdings.map(yieldFor).filter(y => y !== null);

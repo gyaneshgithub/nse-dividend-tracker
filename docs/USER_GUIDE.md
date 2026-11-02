@@ -15,12 +15,13 @@ shows whether the local ChromaDB connection is healthy.
 
 ## The dashboard
 
-The four cards at the top summarize the selected year:
+The five cards at the top summarize the selected year:
 
 | Card | Meaning |
 | --- | --- |
 | **Holdings** | Number of stocks in the tracker. |
 | **Annual income** | Sum of `dividend per share × quantity` for every payout in the year. |
+| **Projected next year income** | Sum of each stock's `max(Q1, Q2, Q3, Q4) × total dividend per share` for the selected year. The badge shows the change versus the selected year's annual income. |
 | **Monthly income** | Annual income ÷ 12. This is an average, not a payment schedule. |
 | **Avg. yield (TTM)** | Average trailing-12-month dividend yield across stocks with a known price. |
 
@@ -188,6 +189,18 @@ See [CHROMADB.md](CHROMADB.md) for details and reset instructions.
 
 Monthly income is only meaningful for a specific year. Select a year to see the
 average monthly figure.
+
+### How is projected next year income calculated?
+
+For every stock, the app takes the highest quantity you recorded in any quarter
+of the selected year and multiplies it by that year's total dividend per share:
+
+`projection = Σ max(Q1, Q2, Q3, Q4) × total dividend`
+
+It assumes you hold that peak quantity for the whole next year and that the
+same dividends repeat. The percentage badge compares the projection with the
+selected year's annual income. Select a specific year to see the projection;
+the all-years view has no single base year.
 
 ### Why does a stock show a red dot?
 

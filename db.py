@@ -654,6 +654,24 @@ def _payout_metadatas():
 # ---------------------------------------------------------------------------
 # analysis
 # ---------------------------------------------------------------------------
+def _projected_next_year_income(holdings, year):
+    """Estimate next year's income from this year's peak quarterly holding.
+
+    For each stock: max(Q1, Q2, Q3, Q4) × total dividend per share for the
+    year. This assumes the highest quarterly quantity is held for the whole
+    next year and the same total dividend is paid again. The all-years view
+    has no single base year, so it returns None there.
+    """
+    if year is None:
+        return None
+    projected = 0.0
+    for holding in holdings:
+        peak = max(_qty_for_quarter(holding, f"{year}-Q{q}") for q in (1, 2, 3, 4))
+        total_dividend = float((holding.get("yearTotals") or {}).get(str(year)) or 0)
+        projected += peak * total_dividend
+    return round(projected, 2)
+
+
 def analysis(year="all"):
     try:
         year_value = None if str(year).lower() in ("all", "", "none") else int(year)
@@ -735,11 +753,18 @@ def analysis(year="all"):
     yields = [r["yieldPct"] for r in by_stock if r["yieldPct"] is not None]
     avg_yield = round(sum(yields) / len(yields), 2) if yields else None
 
+    projected = _projected_next_year_income(holdings, year_value)
+    projected_increase = None
+    if projected is not None and total_income > 0:
+        projected_increase = round((projected - total_income) / total_income * 100, 2)
+
     return {
         "year": "all" if year_value is None else year_value,
         "currency": "INR",
         "backend": "chromadb",
         "totalIncome": total_income,
+        "projectedNextYearIncome": projected,
+        "projectedIncreasePct": projected_increase,
         "totalPayouts": len(metas),
         "holdingsCount": len(holdings),
         "avgYieldPct": avg_yield,
