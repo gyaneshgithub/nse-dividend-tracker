@@ -144,3 +144,31 @@ def test_holding_read_failure_is_not_treated_as_missing(db, monkeypatch):
     monkeypatch.setattr(db, "_get_collections", lambda: (BrokenHoldings(), None))
     with pytest.raises(RuntimeError, match="holdings unavailable"):
         db._load_holding_locked("INFY")
+
+
+def test_payout_delete_failure_aborts_save(db, monkeypatch):
+    class FakeHoldings:
+        def upsert(self, **_kwargs):
+            pass
+
+    class BrokenPayouts:
+        def delete(self, **_kwargs):
+            raise RuntimeError("payout index unavailable")
+
+    monkeypatch.setattr(db, "_get_collections", lambda: (FakeHoldings(), BrokenPayouts()))
+    with pytest.raises(RuntimeError, match="payout index unavailable"):
+        db._save_holding_locked(holding())
+
+
+def test_payout_delete_failure_aborts_holding_delete(db, monkeypatch):
+    class FakeHoldings:
+        def delete(self, **_kwargs):
+            pass
+
+    class BrokenPayouts:
+        def delete(self, **_kwargs):
+            raise RuntimeError("payout index unavailable")
+
+    monkeypatch.setattr(db, "_get_collections", lambda: (FakeHoldings(), BrokenPayouts()))
+    with pytest.raises(RuntimeError, match="payout index unavailable"):
+        db.delete_holding("INFY")
