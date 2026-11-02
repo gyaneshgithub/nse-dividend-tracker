@@ -20,6 +20,7 @@ data/*
 *.sqlite3
 *.sqlite3-shm
 *.sqlite3-wal
+*.sqlite3-journal
 
 # Secrets / local configuration
 .env
@@ -44,3 +45,4 @@ desktop.ini
 /index.html
 /portfolio.html
 /dividend-tracker.html
+/codereview.md
