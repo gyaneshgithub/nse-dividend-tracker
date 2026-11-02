@@ -1,0 +1,213 @@
+# Architecture
+
+The tracker is a small local web application: a Flask server, an embedded
+ChromaDB store, a dividend fetcher, and one vanilla JavaScript page.
+
+```text
+┌──────────────────────────────┐
+│ Browser (templates/index.html)│
+│  table · import · analysis   │
+└──────────────┬───────────────┘
+               │ JSON over HTTP
+┌──────────────▼───────────────┐
+│ server.py (Flask)            │
+│  page routes · /api/*        │
+└───────┬───────────────┬──────┘
+        │               │
+┌───────▼──────┐  ┌─────▼──────────────┐
+│ db.py        │  │ market.py          │
+│ ChromaDB     │  │ stockanalysis.com  │
+│ JSON mirror  │  │ in-memory cache    │
+└──────────────┘  └────────────────────┘
+```
+
+## Components
+
+### `server.py`
+
+- Loads `.env` before importing `db`, because `db` resolves storage paths at
+  import time.
+- Defines the page aliases and the JSON API.
+- Fails fast at startup if ChromaDB cannot be opened. Running without
+  persistence would silently lose holdings.
+- Adds `Cache-Control: no-store` so browsers do not cache portfolio responses.
+
+### `db.py`
+
+- Opens one embedded ChromaDB `PersistentClient` per process.
+- Normalizes and merges holdings.
+- Maintains the payout index used by analysis and search.
+- Writes the JSON mirror.
+- Stores the revision counter and delete tombstones in the `meta` collection.
+- Serializes writes with a re-entrant lock (`threading.RLock`).
+
+### `market.py`
+
+- Fetches the NSE dividend page from stockanalysis.com.
+- Parses the company name, price, annual dividend, yield, and dividend history
+  from the page's embedded JSON.
+- Caches successful responses in memory for `DIVIDEND_CACHE_TTL` seconds
+  (default six hours).
+- Raises `LookupError` when no dividend history exists, `ValueError` for an
+  invalid ticker, and propagates network errors.
+
+### `templates/index.html`
+
+The complete UI: layout, styles, table rendering, import parsing, analysis,
+search, sorting, and cross-window synchronization. No build step, npm, CDN, or
+framework.
+
+## Data model
+
+A holding:
+
+```json
+{
+  "ticker": "INFY",
+  "name": "Infosys",
+  "shares": 10,
+  "quarters": {"2026-Q1": 10, "2026-Q2": 4},
+  "quarterUpdatedAt": {"2026-Q1": "2026-04-01T10:00:00+00:00"},
+  "dividends": [{"date": "2026-05-01", "amount": 2.5}],
+  "yearTotals": {"2026": 2.5},
+  "price": 1500.0,
+  "status": "ok",
+  "lastError": null,
+  "lastFetched": "2026-05-02T08:00:00+00:00",
+  "updatedAt": "2026-05-02T08:00:00+00:00"
+}
+```
+
+Key rules:
+
+- `quarters` is keyed by `YYYY-Qn`. A missing key means zero, not "inherit
+  shares" and not "use the previous quarter".
+- `quarterUpdatedAt` records explicit manual edits so two windows changing
+  different quarters both survive a merge.
+- `dividends` is the full per-share history returned by the upstream source.
+- `yearTotals` is the per-share total for each year and is recomputed on write.
+- `updatedAt` drives last-writer-wins merging for non-quarter fields.
+
+A payout record contains `ticker`, `name`, `date`, `year`, `quarter`,
+`quarter_key`, `amount`, `quantity`, and `income`. Income is
+`amount × quantity in that payout's quarter`, rounded to two decimals.
+
+## Write path
+
+1. The browser sends `PUT /api/portfolio/<ticker>` or a bulk import.
+2. `db.normalize_holding()` validates and canonicalizes the payload.
+3. `db.save_holding()` checks tombstones, loads the existing record, and merges.
+4. `_save_holding_locked()` upserts the holding, rebuilds that ticker's payout
+   records, bumps the revision, and rewrites the JSON mirror.
+5. The response includes the saved holding, the new revision, and storage info.
+
+All writes are serialized by the module lock, so concurrent Flask threads cannot
+interleave a read-modify-write sequence.
+
+## Delete safety
+
+Deleting a stock must stay deleted, even when another window is mid-refresh.
+The design has three layers:
+
+1. **Server tombstone** — `delete_holding()` writes the ticker and a deletion
+   timestamp into `meta/tombstones`.
+2. **Stale-write rejection** — `save_holding()` compares the incoming
+   `updatedAt` with the tombstone. If it is not newer, it returns `None` and the
+   API responds with `ignored: true`.
+3. **Client tombstone** — the browser records the deletion before sending the
+   request, cancels pending sync timers, and rejects in-flight fetch results for
+   that ticker.
+
+A deliberate re-add sends a newer `updatedAt`, which clears the tombstone.
+Bulk import also clears tombstones because it is an explicit user action.
+
+## Cross-window synchronization
+
+Every write increments `meta/revision`. The browser polls `/api/revision` every
+few seconds. When the revision changes, it fetches the portfolio and merges
+remote state:
+
+- local edits in the focused quantity input are deferred until focus leaves;
+- deleted tickers are ignored;
+- stale responses are discarded by comparing revisions and object identity;
+- the local cache in `localStorage` is updated.
+
+This is last-writer-wins with per-quarter timestamps, not a full CRDT.
+
+## Year rollover
+
+The UI derives available years from dividend dates plus the current calendar
+year. The next year is deliberately not shown before 1 January.
+
+Quarter quantities are never copied into a new year. A new year starts blank
+and contributes zero income until the user enters the quantity actually held.
+This is intentional: carrying last year's quantities forward would overstate
+income.
+
+The starting quantity in the add form is applied once, only to quarters present
+in the fetched dividend history. It is a convenience estimate, not a rollover
+rule.
+
+## Analysis
+
+`GET /api/analysis?year=YYYY|all` reads payout metadata from ChromaDB and
+aggregates:
+
+- total income and payout count;
+- income by year (always all years);
+- income by stock, share of total, and TTM yield;
+- income by quarter;
+- the five largest payouts.
+
+Analysis does not recompute from the browser's table; it reads the indexed
+payout records, which are rebuilt whenever a holding changes.
+
+## Search
+
+`GET /api/search?q=...&limit=N` embeds the query with the same deterministic
+embedding function used for payout documents and asks ChromaDB for nearest
+neighbors. It is semantic-ish keyword search, not an LLM. Results include a
+distance-derived score.
+
+## API summary
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/health` | Health plus storage status |
+| `GET` | `/api/revision` | Revision and counts for polling |
+| `GET` | `/api/portfolio` | All holdings, revision, storage info |
+| `PUT` | `/api/portfolio/<ticker>` | Upsert one holding |
+| `DELETE` | `/api/portfolio/<ticker>` | Delete and tombstone one holding |
+| `POST` | `/api/portfolio/import` | Bulk upsert |
+| `GET` | `/api/dividends?symbol=...` | Upstream dividend data |
+| `GET` | `/api/analysis?year=...` | Income analysis |
+| `GET` | `/api/search?q=...` | Semantic payout search |
+| `GET` | `/api/storage` | ChromaDB status |
+
+Unknown `/api/*` routes return JSON 404s so the browser never receives an HTML
+error page.
+
+## Failure handling
+
+- **Upstream failure:** the row keeps its stored data, is marked `error`, and
+  shows the message. Other rows still refresh.
+- **ChromaDB unavailable at startup:** the server exits with installation and
+  diagnostic instructions.
+- **ChromaDB failure during a request:** the API returns `503` with a JSON error
+  and `backend: chromadb`.
+- **Backup write failure:** logged, but does not fail the save. ChromaDB remains
+  authoritative.
+- **Invalid input:** rejected with `400`; bulk import skips invalid rows and
+  reports them.
+
+## Tests
+
+- `tests/test_market.py` — parsing and cache behavior, with no network.
+- `tests/test_db.py` — normalization, merge, tombstones, analysis, backup
+  restore.
+- `tests/test_server.py` — Flask routes and error responses.
+- `scripts/smoke_test.py` — real subprocess, real ChromaDB, temporary storage,
+  full add/read/analyze/delete cycle.
+
+Every test uses a temporary database and data directory. CI runs the suite on
+Linux (Python 3.11–3.13), Windows, and macOS.

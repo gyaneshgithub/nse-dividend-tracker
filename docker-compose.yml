@@ -1,0 +1,16 @@
+services:
+  tracker:
+    build: .
+    container_name: nse-dividend-tracker
+    ports:
+      - "8901:8901"
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8901"
+      DIVIDEND_DB_DIR: /app/chroma_db
+      DIVIDEND_DATA_DIR: /app/data
+      ANONYMIZED_TELEMETRY: "False"
+    volumes:
+      - ./data:/app/data
+      - ./chroma_db:/app/chroma_db
+    restart: unless-stopped

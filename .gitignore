@@ -1,0 +1,46 @@
+# Python / environments
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+
+# Local application data — NEVER COMMIT
+chroma_db/
+data/*
+!data/.gitkeep
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Secrets / local configuration
+.env
+.env.*
+!.env.example
+
+# Logs / temporary files
+*.log
+*.tmp
+*.bak
+*.pid
+
+# OS / editor metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+
+# Personal / legacy files at the repository root only.
+# Anchored so templates/index.html is still tracked.
+/index.html
+/portfolio.html
+/dividend-tracker.html
