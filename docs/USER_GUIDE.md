@@ -138,6 +138,40 @@ The **Search dividend records** box runs a semantic search over the indexed
 payouts. Try queries such as `TCS 2025`, `Reliance dividends`, `highest
 income`, or `Q2 payouts`. Results show the ticker, date, quantity, and income.
 
+## Portfolio insight
+
+Click **🧠 Insight** for a scored summary of the portfolio's dividend health.
+It is computed on demand from data already in the tracker: no network request,
+no language model, and nothing is written back to ChromaDB or to disk.
+
+Choose a year (or **All years**) and move between four tabs:
+
+| Tab | Shows |
+| --- | --- |
+| **Overview** | Overall 0–100 score, confidence, component bars, and plain-language strengths, risks and watchlist. |
+| **Income** | Total income, payouts, average yield, projected next year income, income by year, and a concentration donut. |
+| **Holdings** | Per-stock income share, score, stability, dividend CAGR, payment streak, a five-year trend, and flags such as `cut`. |
+| **Method** | Weights, formula notes, inputs, deferred signals, and the disclaimer. |
+
+The overall score blends three components, renormalised over whichever ones are
+available:
+
+- **Income resilience** (40%) — stability of each stock's annual dividend, how
+  many consecutive years it has paid, and a penalty for cuts larger than 15%.
+- **Dividend growth** (30%) — income-weighted dividend CAGR, blended with the
+  projected next-year change.
+- **Diversification** (30%) — how evenly income is spread, capped by the number
+  of income sources and penalised when the top three dominate.
+
+Scores describe the recorded data; they are not forecasts, ratings, or advice.
+Selecting a past year scores only the dividend history up to that year. If a
+period has no recorded income, the overall score is withheld and the popup
+explains what is missing.
+
+Signals that need price history or external data (valuation, technicals,
+young-consumer exposure) are listed as deferred instead of being scored as
+zero. Click **↻ Recompute** after editing holdings.
+
 ## Delete a stock
 
 Click the **🗑** button on a row. The stock is removed from the tracker and
@@ -209,9 +243,13 @@ your quantities remain saved. Try **Refresh** later.
 
 ### Why is a new year empty?
 
-Quarter quantities are deliberately not inherited across years. Enter the
-quantity you held in each quarter of the new year. This prevents old holdings
-from inflating the new year's income.
+Quarter quantities are not inherited for years that never rolled over. When a
+new calendar year is added, the tracker copies the quantity held in the previous
+year into it (2027 inherits from 2026, 2028 from 2027, and so on), so the new
+year starts with the shares you held last year rather than zero. Enter the
+quantity you actually held in each quarter of the new year if it differs. This
+prevents old holdings from inflating the new year's income while still giving a
+sensible starting point.
 
 ### Does the app place trades or connect to my broker?
 

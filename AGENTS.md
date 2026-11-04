@@ -10,6 +10,7 @@ A local-first NSE dividend tracker:
 
 - `server.py` — Flask app, page routes, JSON API, startup checks.
 - `db.py` — embedded ChromaDB storage, merging, tombstones, analysis, search.
+- `insight.py` — read-only portfolio scoring and narrative (no writes, no network).
 - `market.py` — fetches and parses dividend history from stockanalysis.com.
 - `templates/index.html` — the entire UI (vanilla HTML/CSS/JS, no build step).
 - `run.py` — universal launcher; creates `.venv` on first run.
@@ -45,8 +46,10 @@ On macOS/Linux, `./start.sh`; on Windows, `start.bat`.
    write whose `updatedAt` is not newer than the tombstone must return `None`
    and must not re-create the holding.
 5. **Every successful write bumps the revision and refreshes the JSON mirror.**
-6. **Quarter quantities are per year and per quarter.** Never inherit `shares`
-   or another quarter's quantity for a missing quarter.
+6. **Quarter quantities are per year and per quarter.** Missing quarters mean
+   zero income; the automatic year rollover is the only place where the previous
+   year's quantity is inherited into a newly added year (2027 inherits from
+   2026, 2028 from 2027, ...).
 7. **Cross-platform.** Use `pathlib`/`os.path`, avoid POSIX-only shell calls in
    Python, and keep line endings per `.gitattributes`.
 8. **Keep the UI dependency-free.** No bundler, npm, CDN scripts, or framework.

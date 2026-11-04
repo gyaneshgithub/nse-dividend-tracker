@@ -7,6 +7,7 @@ ChromaDB store, a dividend fetcher, and one vanilla JavaScript page.
 ┌──────────────────────────────┐
 │ Browser (templates/index.html)│
 │  table · import · analysis   │
+│  insight · search            │
 └──────────────┬───────────────┘
                │ JSON over HTTP
 ┌──────────────▼───────────────┐
@@ -41,6 +42,18 @@ ChromaDB store, a dividend fetcher, and one vanilla JavaScript page.
 - Stores the revision counter and delete tombstones in the `meta` collection.
 - Serializes writes with a re-entrant lock (`threading.RLock`).
 
+### `insight.py`
+
+- Turns holdings and `db.analysis()` output into a scored, explainable summary.
+- Pure read path: no network, no language model, no writes. `insight.build()`
+  loads holdings and analysis, computes per-holding dividend metrics and the
+  portfolio components, then returns scores, narrative, chart data and the
+  method description.
+- Components are renormalised over the ones with data, so missing inputs do not
+  drag the score down. Deferred signals are returned as a list, not scored.
+- Reuses `db.analysis()` for income, payouts, yield and projected income so the
+  popup and the dashboard cannot disagree.
+
 ### `market.py`
 
 - Fetches the NSE dividend page from stockanalysis.com.
@@ -54,8 +67,8 @@ ChromaDB store, a dividend fetcher, and one vanilla JavaScript page.
 ### `templates/index.html`
 
 The complete UI: layout, styles, table rendering, import parsing, analysis,
-search, sorting, and cross-window synchronization. No build step, npm, CDN, or
-framework.
+insight, search, sorting, and cross-window synchronization. No build step,
+npm, CDN, or framework.
 
 ## Data model
 
@@ -139,10 +152,12 @@ This is last-writer-wins with per-quarter timestamps, not a full CRDT.
 The UI derives available years from dividend dates plus the current calendar
 year. The next year is deliberately not shown before 1 January.
 
-Quarter quantities are never copied into a new year. A new year starts blank
-and contributes zero income until the user enters the quantity actually held.
-This is intentional: carrying last year's quantities forward would overstate
-income.
+When the calendar year rolls over, the new year inherits the quantity held in
+the previous year (2027 inherits from 2026, 2028 from 2027, and so on) while
+stored quantities for earlier years are never touched.
+
+Quarter quantities for a year that was never rolled into stay blank and
+contribute zero income until the user enters a quantity.
 
 The starting quantity in the add form is applied once, only to quarters present
 in the fetched dividend history. It is a convenience estimate, not a rollover
@@ -161,6 +176,31 @@ aggregates:
 
 Analysis does not recompute from the browser's table; it reads the indexed
 payout records, which are rebuilt whenever a holding changes.
+
+## Insight
+
+`GET /api/insight?year=YYYY|all` builds a descriptive score of dividend health
+from the same holdings and analysis data. It is read-only: the route never
+writes, bumps the revision, or changes the JSON mirror.
+
+The response contains:
+
+- `scores` — overall 0–100, band (`strong` / `steady` / `uneven` / `fragile` /
+  `unknown`), confidence, component scores with weights, and deferred signals;
+- `narrative` — headline, summary, strengths, risks, watchlist and caveats;
+- `stats` — income, payouts, yield, concentration, cuts and coverage counts;
+- `charts` — income by year, income concentration, and per-holding rows;
+- `method` — weights, formula notes and inputs, so the UI can explain itself.
+
+Component scores are renormalised over the components that have data. The
+income component weights holdings by their share of income and penalises
+dividend cuts; diversification is capped by the number of income sources so a
+two-stock portfolio cannot score as fully diversified. A past-year view
+truncates each dividend series at that year, so a later cut cannot appear
+retroactively. The overall score is withheld when the selected period has no
+recorded income; the components remain visible so the popup can explain the
+gap. Signals that need price history or external data are declared as deferred
+rather than scored as zero.
 
 ## Search
 
@@ -181,6 +221,7 @@ distance-derived score.
 | `POST` | `/api/portfolio/import` | Bulk upsert |
 | `GET` | `/api/dividends?symbol=...` | Upstream dividend data |
 | `GET` | `/api/analysis?year=...` | Income analysis |
+| `GET` | `/api/insight?year=...` | Read-only portfolio scores, narrative and charts |
 | `GET` | `/api/search?q=...` | Semantic payout search |
 | `GET` | `/api/storage` | ChromaDB status |
 

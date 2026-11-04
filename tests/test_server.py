@@ -57,6 +57,42 @@ def test_save_load_delete_flow(client):
     assert client.get("/api/portfolio").get_json()["holdings"] == []
 
 
+def test_insight_endpoint_returns_scores_without_writing(client, db):
+    client.put("/api/portfolio/INFY", json=holding())
+    before = db.storage_info()
+
+    response = client.get("/api/insight?year=2026")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["year"] == 2026
+    assert payload["scores"]["overall"] is not None
+    assert [c["key"] for c in payload["scores"]["components"]] == [
+        "income",
+        "growth",
+        "diversification",
+    ]
+    assert payload["narrative"]["headline"]
+    assert payload["stats"]["totalIncome"] == 30.0
+    assert payload["charts"]["incomeByYear"]
+
+    after = db.storage_info()
+    assert after["revision"] == before["revision"]
+    assert after["holdings"] == before["holdings"]
+    assert after["payouts"] == before["payouts"]
+
+
+def test_insight_endpoint_accepts_all_years(client):
+    client.put("/api/portfolio/INFY", json=holding())
+
+    response = client.get("/api/insight?year=all")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["year"] == "all"
+    assert payload["stats"]["projectedNextYearIncome"] is None
+
+
 def test_stale_write_cannot_resurrect_deleted_holding(client):
     client.put("/api/portfolio/INFY", json=holding())
     client.delete("/api/portfolio/INFY")

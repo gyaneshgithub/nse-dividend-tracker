@@ -111,7 +111,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.version:
-        print("NSE Dividend Tracker 1.0.0")
+        print("NSE Dividend Tracker 1.1.0")
         return
 
     if args.host:

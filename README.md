@@ -15,6 +15,8 @@ service, or API key is required.
 *Screenshot uses a demo portfolio with fictional quantities. No real holdings
 are included in this repository.*
 
+**Version:** 1.1.0
+
 ## Features
 
 - **Live NSE dividend history** from stockanalysis.com, cached locally.
@@ -27,6 +29,9 @@ are included in this repository.*
   blank quantities; earlier years are preserved.
 - **Bulk import** from a spreadsheet or CSV: ticker plus Q1–Q4 quantities.
 - **Income analysis** by year, stock, and quarter, including monthly averages.
+- **Portfolio insight** — a read-only popup that scores dividend health,
+  explains concentration and cuts in plain language, and charts income by year
+  and by holding. Computed on demand from local data; nothing is stored.
 - **Semantic search** over indexed dividend payouts using ChromaDB.
 - **Multi-window safe** — every write bumps a revision; stale browser windows
   cannot overwrite newer edits or resurrect a deleted stock.
@@ -85,7 +90,7 @@ You can also run `python run.py` on any platform.
 3. ChromaDB stores each holding and an indexed payout record. A JSON mirror is
    written to `data/portfolio.json` after every change.
 4. The browser polls a revision counter and merges changes from other tabs.
-5. Analysis and search read from the same local database.
+5. Analysis, insight and search read from the same local database.
 
 The app uses **embedded ChromaDB** — no separate database server is needed.
 See [docs/CHROMADB.md](docs/CHROMADB.md) for details.
@@ -166,6 +171,7 @@ native run. Do not expose the port to the public internet.
 .
 ├── server.py              Flask app and JSON API
 ├── db.py                  ChromaDB storage, merging, tombstones, analysis
+├── insight.py             Read-only portfolio scoring and narrative
 ├── market.py              NSE dividend fetch, parse, cache
 ├── run.py                 Universal launcher (creates .venv on first run)
 ├── start.sh / start.bat   Platform wrappers

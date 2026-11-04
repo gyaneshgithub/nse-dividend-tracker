@@ -153,6 +153,57 @@
     .search-result:first-child { border-top: none; }
     .search-result .meta { color: #8e8e93; font-size: 12px; margin-top: 3px; }
     .search-result .amount { text-align: right; white-space: nowrap; }
+
+    /* insight modal */
+    .modal.insight { max-width: 860px; }
+    .insight-tabs { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 12px 0 10px; border-bottom: 1px solid #3a3a3c; margin-bottom: 16px; }
+    .insight-tab { background: transparent; color: #8e8e93; border: 1px solid transparent; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600; }
+    .insight-tab:hover { background: #3a3a3c; color: #fff; }
+    .insight-tab.active { background: #3a3a3c; color: #fff; border-color: #48484a; }
+    .insight-tab[aria-selected="true"] { background: #3a3a3c; color: #fff; border-color: #48484a; }
+    .insight-reload { margin-left: auto; background: #3a3a3c; color: #d1d1d6; padding: 6px 10px; font-size: 12px; }
+    .insight-reload:hover { background: #48484a; color: #fff; }
+    .insight-year-label { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.5px; }
+    .insight-year-label select { background: #1c1c1e; border: 1px solid #48484a; color: #fff; border-radius: 8px; padding: 5px 8px; font-size: 12px; }
+    .insight-hero { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+    .insight-ring { flex: 0 0 auto; }
+    .insight-hero-title { font-size: 15px; font-weight: 700; }
+    .insight-hero .meta { color: #8e8e93; font-size: 12px; margin-top: 4px; }
+    .insight-band { display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: #3a3a3c; color: #8e8e93; }
+    .insight-band.strong { background: rgba(48, 209, 88, 0.15); color: #30d158; }
+    .insight-band.steady { background: rgba(100, 210, 255, 0.15); color: #64d2ff; }
+    .insight-band.uneven { background: rgba(255, 159, 10, 0.15); color: #ff9f0a; }
+    .insight-band.fragile { background: rgba(255, 105, 97, 0.15); color: #ff6961; }
+    .insight-headline { font-size: 16px; font-weight: 700; margin: 16px 0 6px; }
+    .insight-summary { color: #d1d1d6; font-size: 13px; line-height: 1.6; }
+    .insight-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+    .insight-panel { background: #232325; border: 1px solid #3a3a3c; border-radius: 12px; padding: 12px 14px; }
+    .insight-panel h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #8e8e93; margin-bottom: 9px; }
+    .insight-panel ul { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+    .insight-panel li { font-size: 12.5px; color: #d1d1d6; line-height: 1.45; padding-left: 14px; position: relative; }
+    .insight-panel li::before { content: ''; position: absolute; left: 0; top: 6px; width: 6px; height: 6px; border-radius: 50%; background: #8e8e93; }
+    .insight-panel.good li::before { background: #30d158; }
+    .insight-panel.bad li::before { background: #ff6961; }
+    .insight-panel.warn li::before { background: #ff9f0a; }
+    .insight-empty { color: #8e8e93; font-size: 13px; padding: 18px 0; }
+    .insight-deferred { margin-top: 18px; font-size: 11.5px; color: #8e8e93; border-top: 1px solid #3a3a3c; padding-top: 12px; line-height: 1.6; }
+    .insight-chart { width: 100%; height: auto; display: block; }
+    .insight-legend { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+    .insight-legend .row { display: flex; align-items: center; gap: 8px; }
+    .insight-legend .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+    .insight-legend .val { margin-left: auto; color: #8e8e93; font-variant-numeric: tabular-nums; }
+    .insight-table-wrap { max-height: 46vh; overflow: auto; border: 1px solid #3a3a3c; border-radius: 12px; }
+    .insight-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .insight-table th { text-align: left; color: #8e8e93; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; padding: 9px 8px; border-bottom: 1px solid #3a3a3c; position: sticky; top: 0; background: #2c2c2e; z-index: 1; }
+    .insight-table td { padding: 8px; border-bottom: 1px solid #2f2f31; vertical-align: middle; }
+    .insight-table tr:last-child td { border-bottom: none; }
+    .insight-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .insight-flag { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 999px; background: #3a3a3c; color: #ff9f0a; white-space: nowrap; }
+    .insight-flag.cut { color: #ff6961; background: rgba(255, 105, 97, 0.14); }
+    .insight-subhead { font-size: 10px; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 8px; }
+    .insight-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .insight-method dt { font-size: 11px; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 10px; }
+    .insight-method dd { font-size: 12.5px; color: #d1d1d6; line-height: 1.5; margin-top: 3px; }
   </style>
 </head>
 <body>
@@ -169,6 +220,7 @@
         <button id="clear-year" class="danger" title="Set every saved quarter quantity for the selected year to 0 — use this to remove copied or incorrect data">🧹 Clear year</button>
         <button id="import-btn" title="Bulk-load quarterly quantities from a spreadsheet. Rows whose stock is already in the tracker are skipped.">📥 Import</button>
         <button id="analysis-btn" title="Open portfolio analysis powered by local ChromaDB">📊 Analysis</button>
+        <button id="insight-btn" title="Score the portfolio's dividend health from local data. Read-only: nothing is stored or sent anywhere.">🧠 Insight</button>
         <button id="refresh-all" title="Re-fetch live dividend data for all stocks">🔄 Refresh All</button>
       </div>
     </header>
@@ -275,6 +327,31 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="insight-modal" hidden>
+    <div class="modal wide insight" role="dialog" aria-modal="true" aria-labelledby="insight-title">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title" id="insight-title">🧠 Portfolio Insight</div>
+          <div class="modal-sub" id="insight-sub">Computed locally from your dividend history · nothing is stored</div>
+        </div>
+        <button class="icon-btn modal-close" id="insight-close" title="Close insight (Esc)" aria-label="Close insight">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="insight-tabs" id="insight-tabs" role="tablist" aria-label="Insight sections">
+          <button class="insight-tab active" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+          <button class="insight-tab" role="tab" aria-selected="false" data-tab="income">Income</button>
+          <button class="insight-tab" role="tab" aria-selected="false" data-tab="holdings">Holdings</button>
+          <button class="insight-tab" role="tab" aria-selected="false" data-tab="method">Method</button>
+          <label class="insight-year-label">Year
+            <select id="insight-year" title="Choose the year to score"></select>
+          </label>
+          <button id="insight-reload" class="insight-reload" title="Recompute the insight from local data">↻ Recompute</button>
+        </div>
+        <div id="insight-body"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     window.__INITIAL__ = {{ initial_state | tojson }};
   </script>
@@ -282,7 +359,7 @@
     const LS_HOLDINGS = 'dividendTracker.holdings.v1';
     const LS_SYNCED = 'dividendTracker.synced.v1';
 
-    let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, sortKey: null, sortDir: 'asc' };
+    let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, sortKey: null, sortDir: 'asc' };
     let refreshing = false;
     const syncTimers = {};
     const pendingDefaults = {};
@@ -355,6 +432,14 @@
       analysisSearchBtn: document.getElementById('analysis-search-btn'),
       analysisChips: document.getElementById('analysis-chips'),
       analysisSearchResults: document.getElementById('analysis-search-results'),
+      insightBtn: document.getElementById('insight-btn'),
+      insightModal: document.getElementById('insight-modal'),
+      insightClose: document.getElementById('insight-close'),
+      insightSub: document.getElementById('insight-sub'),
+      insightYear: document.getElementById('insight-year'),
+      insightTabs: document.getElementById('insight-tabs'),
+      insightBody: document.getElementById('insight-body'),
+      insightReload: document.getElementById('insight-reload'),
     };
 
     // ---------- storage ----------
@@ -373,7 +458,7 @@
     function saveSyncedTickers() {
       localStorage.setItem(LS_SYNCED, JSON.stringify([...syncedTickers]));
     }
-    function persist() { saveHoldings(); render(); }
+    function persist() { saveHoldings(); render(); if (state.insightOpen) loadInsight(); }
 
     function getHolding(ticker) { return state.holdings.find(h => h.ticker === ticker); }
     function findIndex(ticker) { return state.holdings.findIndex(h => h.ticker === ticker); }
@@ -635,6 +720,7 @@
       setDbStatus('saved', 'DB: synced', 'Synced with local ChromaDB (revision ' + revision + ')');
       for (const h of push) dbSaveHolding(h, true);
       if (state.analysisOpen) loadAnalysis();
+      if (state.insightOpen) loadInsight();
     }
 
     function checkCalendarRollover() {
@@ -647,11 +733,29 @@
       lastCalendarYear = currentYear;
       if (wasViewingPreviousYear || state.year === null) {
         // Move to the new year automatically. Stored quantities for earlier
-        // years are never touched; the new year has no quarter keys yet, so
-        // every input starts blank and contributes zero income.
+        // years are never touched; the new year inherits the quantity held in
+        // the previous year, and only quarters that were actually recorded.
         state.year = currentYear;
       }
+      inheritQuantitiesForNewYear(currentYear);
       render();
+    }
+
+    // A year with no stored quarters starts blank and contributes zero income,
+    // except the year that just rolled over, which inherits the quantity held
+    // in the previous year (2027 inherits from 2026, 2028 from 2027, ...).
+    function inheritQuantitiesForNewYear(newYear) {
+      const sourceYear = String(Number(newYear) - 1);
+      for (const holding of state.holdings) {
+        if (!holding.quarters) holding.quarters = {};
+        for (let q = 1; q <= 4; q++) {
+          const sourceKey = sourceYear + '-Q' + q;
+          const targetKey = newYear + '-Q' + q;
+          const source = holding.quarters[sourceKey];
+          const valid = source !== undefined && source !== null && source !== '' && isFinite(Number(source)) && Number(source) >= 0;
+          if (valid) holding.quarters[targetKey] = source;
+        }
+      }
     }
 
     async function pollNow() {
@@ -1475,6 +1579,7 @@
     }
 
     function openAnalysis() {
+      if (state.insightOpen) closeInsight();
       state.analysisOpen = true;
       populateAnalysisYears();
       el.analysisModal.hidden = false;
@@ -1518,13 +1623,403 @@
       }).join('');
     }
 
+    // ---------- portfolio insight ----------
+    // Everything below renders /api/insight. The payload is computed on
+    // demand and never persisted, so this is pure display code.
+
+    const INSIGHT_PALETTE = ['#ff9f0a', '#64d2ff', '#30d158', '#bf5af2', '#ffd60a', '#ff6961', '#5e5ce6', '#8e8e93'];
+    let insightRequest = 0;
+
+    function insightBandColor(band) {
+      return { strong: '#30d158', steady: '#64d2ff', uneven: '#ff9f0a', fragile: '#ff6961' }[band] || '#48484a';
+    }
+
+    function insightBandLabel(band) {
+      return { strong: 'Strong', steady: 'Steady', uneven: 'Uneven', fragile: 'Fragile' }[band] || 'Not scored';
+    }
+
+    function insightNum(value, digits) {
+      const n = Number(value);
+      if (value === null || value === undefined || isNaN(n)) return '—';
+      return n.toFixed(digits === undefined ? 1 : digits);
+    }
+
+    function insightScoreCell(score) {
+      if (score === null || score === undefined) return '<span style="color:#8e8e93">—</span>';
+      const color = score >= 75 ? '#30d158' : score >= 60 ? '#64d2ff' : score >= 40 ? '#ff9f0a' : '#ff6961';
+      return `<span style="color:${color};font-weight:700">${insightNum(score, 1)}</span>`;
+    }
+
+    function insightRing(score, band) {
+      const size = 120, r = 51, c = 2 * Math.PI * r, cx = 60, cy = 60;
+      const pct = score === null || score === undefined ? 0 : Math.max(0, Math.min(100, Number(score)));
+      const dash = (c * pct / 100).toFixed(1);
+      return `<svg class="insight-ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img"
+          aria-label="Overall dividend health score ${score === null ? 'not available' : Math.round(pct) + ' out of 100'}">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#3a3a3c" stroke-width="11"/>
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${insightBandColor(band)}" stroke-width="11"
+          stroke-linecap="round" stroke-dasharray="${dash} ${c.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})"/>
+        <text x="${cx}" y="${cy - 1}" text-anchor="middle" font-size="27" font-weight="800" fill="#fff">${score === null || score === undefined ? '—' : Math.round(pct)}</text>
+        <text x="${cx}" y="${cy + 17}" text-anchor="middle" font-size="9" fill="#8e8e93" letter-spacing="1">/ 100</text>
+      </svg>`;
+    }
+
+    function insightBar(label, value, max, valueText, title) {
+      const pct = max > 0 ? Math.max(2, Math.min(100, (Number(value) || 0) / max * 100)) : 0;
+      return `<div class="bar-row" title="${esc(title || '')}">
+        <span class="bar-label">${esc(label)}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
+        <span class="bar-value">${valueText}</span>
+      </div>`;
+    }
+
+    function insightList(items, emptyText) {
+      if (!items || !items.length) {
+        return `<div class="analysis-empty">${esc(emptyText)}</div>`;
+      }
+      return `<ul>${items.map(item => `<li>${esc(item)}</li>`).join('')}</ul>`;
+    }
+
+    function insightYearChart(rows, year) {
+      if (!rows.length) {
+        return '<div class="insight-empty">No payouts recorded yet. Add dividend history to see this chart.</div>';
+      }
+      const w = Math.max(320, rows.length * 64), h = 178, pad = 28, base = h - 30;
+      const max = Math.max(1, ...rows.map(row => Number(row.income) || 0));
+      const slot = (w - pad * 2) / rows.length;
+      const bw = Math.min(38, slot * 0.62);
+      const bars = rows.map((row, index) => {
+        const x = pad + (index + 0.5) * slot;
+        const bh = Math.max(2, ((Number(row.income) || 0) / max) * (base - 22));
+        const y = base - bh;
+        const active = year !== 'all' && Number(row.year) === Number(year);
+        return `<g>
+          <rect x="${(x - bw / 2).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4"
+            fill="${active ? '#ff9f0a' : '#48484a'}"><title>${row.year}: ${fmtMoney(row.income)}</title></rect>
+          <text x="${x.toFixed(1)}" y="${h - 10}" text-anchor="middle" font-size="10" fill="${active ? '#ff9f0a' : '#8e8e93'}">${row.year}</text>
+        </g>`;
+      }).join('');
+      return `<svg class="insight-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" role="img"
+          aria-label="Dividend income by year, peak ${fmtMoney(max)}">
+        <text x="${pad}" y="12" font-size="9" fill="#8e8e93">peak ${esc(fmtMoney(max))}</text>
+        <line x1="${pad}" y1="${base}" x2="${w - pad}" y2="${base}" stroke="#3a3a3c" stroke-width="1"/>
+        ${bars}
+      </svg>`;
+    }
+
+    function insightDonut(rows, totalSources) {
+      if (!rows.length) {
+        return '<div class="insight-empty">No income to distribute for this period.</div>';
+      }
+      const size = 168, r = 62, cx = 84, cy = 84, c = 2 * Math.PI * r;
+      let offset = 0;
+      const slices = rows.map((row, index) => {
+        const share = Math.max(0, Number(row.sharePct) || 0);
+        const length = c * share / 100;
+        const visible = Math.max(0, length - 2);
+        const slice = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+          stroke="${INSIGHT_PALETTE[index % INSIGHT_PALETTE.length]}" stroke-width="21"
+          stroke-dasharray="${visible.toFixed(2)} ${(c - visible).toFixed(2)}"
+          stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})">
+          <title>${esc(row.label)}: ${share.toFixed(1)}%</title></circle>`;
+        offset += length;
+        return slice;
+      }).join('');
+      const legend = rows.map((row, index) => `<div class="row">
+        <span class="dot" style="background:${INSIGHT_PALETTE[index % INSIGHT_PALETTE.length]}"></span>
+        <span>${esc(row.label)}</span>
+        <span class="val">${insightNum(row.sharePct, 1)}%</span>
+      </div>`).join('');
+      return `<div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="Share of dividend income by holding">
+          ${slices}
+          <text x="${cx}" y="${cy - 2}" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">${totalSources || rows.length}</text>
+          <text x="${cx}" y="${cy + 15}" text-anchor="middle" font-size="9" fill="#8e8e93">income sources</text>
+        </svg>
+        <div class="insight-legend" style="flex:1;min-width:180px">${legend}</div>
+      </div>`;
+    }
+
+    function insightSparkline(dps) {
+      const values = (dps || []).map(point => Number(point.amount) || 0);
+      if (values.length < 2) return '<span style="color:#8e8e93">—</span>';
+      const w = 68, h = 22, max = Math.max(...values), min = Math.min(...values);
+      const span = max - min || 1;
+      const step = w / (values.length - 1);
+      const points = values.map((value, index) =>
+        `${(index * step).toFixed(1)},${(h - 3 - ((value - min) / span) * (h - 6)).toFixed(1)}`
+      ).join(' ');
+      const rising = values[values.length - 1] >= values[0];
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+        <polyline points="${points}" fill="none" stroke="${rising ? '#30d158' : '#ff6961'}" stroke-width="1.8"
+          stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>`;
+    }
+
+    function insightKpi(label, value, cls, hint) {
+      return `<div class="analysis-card" title="${esc(hint || '')}">
+        <div class="label">${esc(label)}</div>
+        <div class="value ${cls || ''}">${value}</div>
+      </div>`;
+    }
+
+    function insightOverview(data) {
+      const scores = data.scores, narrative = data.narrative, stats = data.stats;
+      const confidence = Math.round((Number(scores.confidence) || 0) * 100);
+      const components = scores.components.map(component => insightBar(
+        component.label,
+        component.score,
+        100,
+        component.score === null ? '—' : insightNum(component.score, 1),
+        `${component.note} Weight ${Math.round(component.weight * 100)}%.`
+      )).join('');
+
+      const panels = stats.holdings === 0
+        ? `<div class="insight-panel">
+            <h4>Get started</h4>
+            <div class="insight-summary">Add stocks and refresh their dividends to see strengths,
+              risks and a watchlist here.</div>
+          </div>`
+        : stats.totalIncome <= 0
+          ? `<div class="insight-panel bad">
+              <h4>What is missing</h4>${insightList(narrative.risks, 'No income recorded for this period.')}
+            </div>`
+          : [
+              ['good', 'Strengths', narrative.strengths, 'No clear strengths detected yet.'],
+              ['bad', 'Risks', narrative.risks, 'No concentration or cut risks detected.'],
+              ['warn', 'Watchlist', narrative.watchlist, 'Nothing on the watchlist.'],
+            ].map(([tone, title, items, empty]) => `<div class="insight-panel ${tone}">
+                <h4>${title}</h4>${insightList(items, empty)}
+              </div>`).join('');
+
+      const deferred = (scores.deferred || []).map(item => item.label).join(' · ');
+      const noScoreNote = scores.overall === null && stats.holdings > 0
+        ? `<div class="insight-deferred" style="margin-top:10px">Overall score withheld until this
+            period has recorded income.</div>`
+        : '';
+
+      return `
+        <div class="insight-hero">
+          ${insightRing(scores.overall, scores.band)}
+          <div style="flex:1;min-width:200px">
+            <div class="insight-hero-title">Overall dividend health</div>
+            <div class="meta">${esc(data.yearLabel)} · ${stats.holdings} holding${stats.holdings === 1 ? '' : 's'}
+              · ${confidence}% data coverage</div>
+            <span class="insight-band ${esc(scores.band)}">${esc(insightBandLabel(scores.band))}</span>
+          </div>
+        </div>
+        <div class="insight-headline">${esc(narrative.headline)}</div>
+        <div class="insight-summary">${esc(narrative.summary)}</div>
+        ${noScoreNote}
+        <div class="insight-subhead">Score components</div>
+        ${components || '<div class="insight-empty">Not enough data to score this portfolio.</div>'}
+        <div class="insight-columns">${panels}</div>
+        <div class="insight-deferred">
+          <strong>Not scored yet:</strong> ${esc(deferred || 'none')}.
+          These signals are planned for a later phase and are excluded rather than scored as zero.
+        </div>`;
+    }
+
+    function insightIncome(data) {
+      const stats = data.stats, isYear = data.year !== 'all';
+      const projection = stats.projectedNextYearIncome;
+      const change = stats.projectedIncreasePct;
+      const cards = [
+        insightKpi(`Total income · ${data.yearLabel}`, fmtMoney(stats.totalIncome), 'orange',
+          'Dividend income recorded for the selected period.'),
+        insightKpi('Payouts', String(stats.payouts), '', 'Dividend payments counted in this period.'),
+        insightKpi('Avg. yield (TTM)', fmtPct(stats.avgYieldPct), 'green',
+          'Average trailing yield across holdings with a known price.'),
+        isYear && projection !== null
+          ? insightKpi('Projected next year', fmtMoney(projection),
+              change !== null && change >= 0 ? 'green' : 'orange',
+              'Carries this year\'s peak quarterly quantity into next year at the same per-share dividend.')
+          : insightKpi('Holdings with 3+ years', `${stats.holdingsWithHistory} / ${stats.holdings}`, '',
+              'Holdings with enough dividend history for a reliable stability score.'),
+      ].join('');
+
+      const changeLine = isYear && change !== null
+        ? `<div class="insight-summary" style="margin-top:8px">Projected change versus ${esc(data.yearLabel)}:
+            <strong style="color:${change >= 0 ? '#30d158' : '#ff6961'}">${change >= 0 ? '+' : ''}${insightNum(change, 1)}%</strong></div>`
+        : '';
+
+      return `<div class="insight-kpis">${cards}</div>${changeLine}
+        <div class="insight-subhead">Income by year</div>
+        ${insightYearChart(data.charts.incomeByYear, data.year)}
+        <div class="insight-subhead">Where the income comes from</div>
+        <div class="insight-panel">${insightDonut(data.charts.concentration, stats.incomeSources)}</div>
+        <div class="insight-deferred">
+          Concentration uses actual income for ${esc(data.yearLabel)}, not portfolio value.
+          ${stats.top1Pct === null ? '' : `Largest holding: ${insightNum(stats.top1Pct, 1)}% of income.`}
+        </div>`;
+    }
+
+    function insightHoldings(data) {
+      const rows = data.charts.holdings;
+      if (!rows.length) {
+        return '<div class="insight-empty">No holdings yet. Add stocks to see per-holding scores.</div>';
+      }
+      const body = rows.map(row => {
+        const flags = [];
+        if (row.cuts && row.cuts.length) {
+          flags.push(`<span class="insight-flag cut" title="Dividend cut in ${row.cuts.map(cut => cut.year).join(', ')}">cut</span>`);
+        }
+        if (!row.hasPrice) {
+          flags.push('<span class="insight-flag" title="No price on record, so yield is excluded">no price</span>');
+        }
+        if ((row.yearsOfHistory || 0) < 3) {
+          flags.push('<span class="insight-flag" title="Fewer than three years of recorded dividend history">short history</span>');
+        }
+        return `<tr>
+          <td><span class="ticker-badge">${esc(row.ticker)}</span>
+            <div class="meta">${esc(row.name)}</div></td>
+          <td class="num">${insightNum(row.sharePct, 1)}%</td>
+          <td style="text-align:center">${insightSparkline(row.dps)}</td>
+          <td class="num">${insightScoreCell(row.score)}</td>
+          <td class="num">${insightNum(row.stability, 1)}</td>
+          <td class="num">${row.cagrPct === null ? '—' : insightNum(row.cagrPct, 2) + '%'}</td>
+          <td class="num">${row.streak}</td>
+          <td>${flags.join(' ') || '<span style="color:#8e8e93">—</span>'}</td>
+        </tr>`;
+      }).join('');
+
+      return `<div class="insight-table-wrap">
+        <table class="insight-table">
+          <thead><tr>
+            <th>Holding</th>
+            <th class="num">Income</th>
+            <th style="text-align:center" title="Dividend per share, last five recorded years">Trend</th>
+            <th class="num">Score</th>
+            <th class="num">Stability</th>
+            <th class="num">CAGR</th>
+            <th class="num" title="Consecutive years with a payout">Streak</th>
+            <th>Flags</th>
+          </tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+      <div class="insight-deferred">
+        Scores combine dividend stability, payment streak and growth. Holdings marked
+        <em>short history</em> have fewer than three recorded years, so their stability is less reliable.
+      </div>`;
+    }
+
+    function insightMethod(data) {
+      const labels = {};
+      data.scores.components.forEach(component => { labels[component.key] = component.label; });
+      const weights = Object.entries(data.method.weights).map(([key, weight]) =>
+        insightBar(labels[key] || key, weight * 100, 100, `${Math.round(weight * 100)}%`, key)
+      ).join('');
+
+      const thresholds = Object.entries(data.method.thresholds).map(([key, text]) =>
+        `<dt>${esc(key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()))}</dt><dd>${esc(text)}</dd>`
+      ).join('');
+
+      const deferred = (data.scores.deferred || []).map(item =>
+        `<div class="insight-panel" style="margin-top:8px">
+          <h4>${esc(item.label)} · phase ${item.phase}</h4>
+          <div class="insight-summary">${esc(item.reason)}</div>
+        </div>`
+      ).join('');
+
+      return `<div class="insight-summary">Every score is computed from data already stored in this
+          tracker. Nothing is sent anywhere, cached on disk, or written back.</div>
+        <div class="insight-subhead">Weights</div>
+        ${weights}
+        <div class="insight-subhead">Formula notes</div>
+        <dl class="insight-method">${thresholds}</dl>
+        <div class="insight-subhead">Inputs used</div>
+        <div class="insight-summary">${data.method.inputs.map(esc).join(' · ')}</div>
+        <div class="insight-subhead">Deferred signals</div>
+        ${deferred || '<div class="insight-empty">All planned signals are scored.</div>'}
+        <div class="insight-subhead">Disclaimer</div>
+        <div class="insight-summary">${esc(data.disclaimer)}</div>`;
+    }
+
+    function insightTabBody(data) {
+      if (state.insightTab === 'income') return insightIncome(data);
+      if (state.insightTab === 'holdings') return insightHoldings(data);
+      if (state.insightTab === 'method') return insightMethod(data);
+      return insightOverview(data);
+    }
+
+    function renderInsight(data) {
+      state.insightData = data;
+      const generated = new Date(data.generatedAt);
+      const stamp = isNaN(generated.getTime())
+        ? 'just now'
+        : generated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      el.insightSub.textContent =
+        `Local data only · ${data.stats.holdings} holding${data.stats.holdings === 1 ? '' : 's'} · ` +
+        `${data.yearLabel} · computed at ${stamp} · nothing stored`;
+      populateInsightYears();
+      setInsightTab(state.insightTab);
+    }
+
+    function populateInsightYears() {
+      const years = availableYears(true);
+      const selected = state.insightYear === null ? 'all' : String(state.insightYear);
+      el.insightYear.innerHTML =
+        years.map(year => `<option value="${year}">${year}</option>`).join('') +
+        '<option value="all">All years</option>';
+      el.insightYear.value = selected;
+    }
+
+    async function loadInsight() {
+      const token = ++insightRequest;
+      el.insightBody.innerHTML = '<div class="insight-empty">Computing portfolio insight from local data…</div>';
+      try {
+        const year = state.insightYear === null ? 'all' : state.insightYear;
+        const res = await fetch('/api/insight?year=' + encodeURIComponent(year));
+        const json = await res.json().catch(() => ({}));
+        if (token !== insightRequest) return;
+        if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
+        renderInsight(json);
+      } catch (e) {
+        if (token !== insightRequest) return;
+        el.insightBody.innerHTML = '<div class="analysis-error">Could not compute insight: ' + esc(e.message || e) + '</div>';
+      }
+    }
+
+    function setInsightTab(tab) {
+      state.insightTab = tab;
+      el.insightTabs.querySelectorAll('.insight-tab').forEach(button => {
+        const active = button.dataset.tab === tab;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      if (state.insightData) el.insightBody.innerHTML = insightTabBody(state.insightData);
+    }
+
+    function openInsight() {
+      if (state.analysisOpen) closeAnalysis();
+      state.insightOpen = true;
+      if (state.insightYear === null) {
+        const years = availableYears(true);
+        if (state.year !== 'all' && state.year !== null && years.includes(state.year)) {
+          state.insightYear = state.year;
+        } else {
+          state.insightYear = years.length ? years[0] : new Date().getFullYear();
+        }
+      }
+      populateInsightYears();
+      setInsightTab(state.insightTab || 'overview');
+      el.insightModal.hidden = false;
+      el.insightClose.focus();
+      loadInsight();
+    }
+
+    function closeInsight() {
+      state.insightOpen = false;
+      el.insightModal.hidden = true;
+    }
+
     function render() {
       renderYearFilter();
       renderSummary();
       renderTable();
       renderHistory();
     }
-
     // ---------- events ----------
     el.yearFilter.addEventListener('change', () => {
       const v = el.yearFilter.value;
@@ -1642,10 +2137,25 @@
       if (chip) runSearch(chip.dataset.query);
     });
 
+    el.insightBtn.addEventListener('click', openInsight);
+    el.insightClose.addEventListener('click', closeInsight);
+    el.insightModal.addEventListener('click', e => { if (e.target === el.insightModal) closeInsight(); });
+    el.insightTabs.addEventListener('click', e => {
+      const tab = e.target.closest('.insight-tab');
+      if (tab) setInsightTab(tab.dataset.tab);
+    });
+    el.insightYear.addEventListener('change', () => {
+      const value = el.insightYear.value;
+      state.insightYear = value === 'all' ? 'all' : Number(value);
+      loadInsight();
+    });
+    el.insightReload.addEventListener('click', loadInsight);
+
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       if (state.historyTicker) closeHistory();
       else if (!el.importModal.hidden) closeImport();
+      else if (state.insightOpen) closeInsight();
       else if (state.analysisOpen) closeAnalysis();
     });
 

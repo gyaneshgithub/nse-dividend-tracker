@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Added
+
+- **Portfolio insight** popup. A read-only, on-demand view of dividend health:
+  an overall 0–100 score, income-resilience, growth and diversification
+  components, plain-language strengths, risks and watchlist, and charts for
+  income by year and income concentration. Served by `GET /api/insight` and
+  computed from local tracker data; the result is never persisted. New module:
+  `insight.py`.
+
+### Changed
+
+- **Year rollover now copies the previous year's quarterly quantities into a
+  newly added year.** When the calendar rolls over (for example from 2026 to
+  2027), each holding inherits its Q1–Q4 quantities from the previous year, so
+  the new year starts with the quantity actually held last year instead of
+  starting blank.
+
+### Fixed
+
+- The **projected next year income** shown in the portfolio insight now
+  refreshes as soon as a quarter quantity is committed (on change/blur) while
+  the insight popup is open, instead of waiting for the next sync poll.
+
 ## [1.1.0] — 2026-11-02
 
 First release with the **Projected next year income** dashboard card.

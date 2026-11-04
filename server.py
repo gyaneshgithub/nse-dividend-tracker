@@ -25,6 +25,8 @@ POST   /api/portfolio/import       -> { holdings: [...] } bulk upsert
 Analysis
 --------
 GET /api/analysis?year=2026|all    -> income by year / stock / quarter
+GET /api/insight?year=2026|all     -> scores, narrative and chart data (read-only,
+                                      never stored)
 GET /api/search?q=...&limit=10     -> semantic search over indexed payouts
 GET /api/storage                   -> ChromaDB status, counts and revision
 GET /api/health                    -> health + storage status
@@ -45,6 +47,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 
 import db  # noqa: E402  (must load .env before db resolves its paths)
+import insight  # noqa: E402
 from market import SYMBOL_RE, get_dividends  # noqa: E402
 
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"))
@@ -274,6 +277,15 @@ def api_analysis():
     year = request.args.get("year", "all")
     try:
         return jsonify(db.analysis(year))
+    except Exception as exc:
+        return _storage_error(exc)
+
+
+@app.get("/api/insight")
+def api_insight():
+    """Deterministic portfolio insight. Read-only: nothing is persisted."""
+    try:
+        return jsonify(insight.build(request.args.get("year", "all")))
     except Exception as exc:
         return _storage_error(exc)
 
