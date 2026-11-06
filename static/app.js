@@ -46,6 +46,17 @@ const el = {
   addInput: document.getElementById('add-input'),
   addShares: document.getElementById('add-shares'),
   formMsg: document.getElementById('form-msg'),
+  errorBanner: document.getElementById('error-banner'),
+  errorBannerTitle: document.getElementById('error-banner-title'),
+  errorBannerMessage: document.getElementById('error-banner-message'),
+  errorBannerHint: document.getElementById('error-banner-hint'),
+  errorBannerMeta: document.getElementById('error-banner-meta'),
+  errorRetry: document.getElementById('error-retry'),
+  errorCopy: document.getElementById('error-copy'),
+  errorDismiss: document.getElementById('error-dismiss'),
+  emptyState: document.getElementById('empty-state'),
+  tableWrap: document.getElementById('table-wrap'),
+  scrollHint: document.getElementById('scroll-hint'),
   importBtn: document.getElementById('import-btn'),
   importModal: document.getElementById('import-modal'),
   importClose: document.getElementById('import-close'),
@@ -130,6 +141,163 @@ function setDbStatus(kind, text, title) {
   el.dbStatus.className = 'db-status ' + kind;
   el.dbStatusText.textContent = text;
   if (title) el.dbStatus.title = title;
+}
+
+// ---------- user-facing messages and fetch errors ----------
+function showFormMessage(text, kind) {
+  el.formMsg.textContent = text || '';
+  el.formMsg.className = kind || '';
+}
+
+const ERROR_FALLBACKS = {
+  invalid_symbol: {
+    title: 'That ticker looks invalid',
+    hint: 'Use 2–15 letters or digits with optional hyphens, e.g. RELIANCE or BAJAJ-AUTO. Spaces and .NS are removed automatically.',
+  },
+  no_history: {
+    title: 'No dividend history found',
+    hint: 'The ticker may be delisted, renamed, or may never have paid a dividend. Check the symbol on nseindia.com and try again.',
+  },
+  unknown_ticker: {
+    title: 'Ticker not found upstream',
+    hint: 'Check that the NSE symbol is current, then press Retry.',
+  },
+  network: {
+    title: 'Could not reach the dividend source',
+    hint: 'Check your internet connection, then press Retry. If you are behind a proxy or firewall, allow stockanalysis.com.',
+  },
+  rate_limited: {
+    title: 'The dividend source is rate-limiting requests',
+    hint: 'Wait a minute, then press Retry. Data already fetched is cached for 6 hours.',
+  },
+  source_down: {
+    title: 'The dividend source is having trouble',
+    hint: 'This is usually temporary. Press Retry in a moment.',
+  },
+  upstream: {
+    title: 'Dividend fetch failed',
+    hint: 'Press Retry. If it keeps failing, copy the debug info and check the server log.',
+  },
+};
+
+let fetchErrorTickers = [];
+let fetchErrorInfo = null;
+
+function describeFailure(failure) {
+  const code = failure.code || 'upstream';
+  const fallback = ERROR_FALLBACKS[code] || ERROR_FALLBACKS.upstream;
+  return {
+    code,
+    title: fallback.title,
+    message: failure.message || 'The request failed.',
+    hint: failure.hint || fallback.hint,
+  };
+}
+
+function reportFetchErrors(failures) {
+  const list = (failures || []).filter(Boolean);
+  if (!list.length) return;
+  const first = describeFailure(list[0]);
+  const tickers = [...new Set(list.map(f => f.ticker))];
+  fetchErrorTickers = tickers;
+  fetchErrorInfo = {
+    ...first,
+    tickers,
+    details: list.map(f => ({ ticker: f.ticker, code: f.code, message: f.message, hint: f.hint })),
+  };
+  const single = tickers.length === 1;
+  const mixed = list.some(f => (f.code || 'upstream') !== first.code);
+  el.errorBannerTitle.textContent = single ? `Couldn't load ${tickers[0]}` : `Couldn't load ${tickers.length} stocks`;
+  el.errorBannerMessage.textContent = (!single && mixed)
+    ? 'Some stocks could not be refreshed. The first reason is shown below.'
+    : first.message;
+  el.errorBannerHint.textContent = first.hint;
+  el.errorBannerMeta.textContent = single ? '' : 'Failed: ' + tickers.join(', ');
+  el.errorRetry.disabled = false;
+  el.errorRetry.textContent = 'Retry';
+  el.errorBanner.hidden = false;
+}
+
+function clearFetchError(ticker) {
+  if (!fetchErrorInfo) return;
+  const remaining = fetchErrorInfo.details.filter(d => d.ticker !== ticker);
+  if (!remaining.length) {
+    hideFetchError();
+    return;
+  }
+  // Rebuild from the remaining details so the title, message and hint stay
+  // consistent when one stock recovers but others still fail.
+  reportFetchErrors(remaining.map(d => ({ ...d, ok: false })));
+}
+
+function hideFetchError() {
+  fetchErrorTickers = [];
+  fetchErrorInfo = null;
+  el.errorBanner.hidden = true;
+}
+
+function errorDebugText() {
+  const backend = (INITIAL.storage && INITIAL.storage.backend) || 'unknown';
+  const lines = [
+    'Dividend Tracker fetch error',
+    'Time: ' + new Date().toISOString(),
+    'Page: ' + location.href,
+    'Tickers: ' + (fetchErrorTickers.join(', ') || 'n/a'),
+    'Code: ' + (fetchErrorInfo ? fetchErrorInfo.code : 'n/a'),
+    'Message: ' + (fetchErrorInfo ? fetchErrorInfo.message : 'n/a'),
+    'Hint: ' + (fetchErrorInfo ? fetchErrorInfo.hint : 'n/a'),
+    'Storage: ' + backend,
+    'Revision: ' + lastRevision,
+    'User agent: ' + navigator.userAgent,
+  ];
+  if (fetchErrorInfo && fetchErrorInfo.details && fetchErrorInfo.details.length > 1) {
+    lines.push('Details:');
+    for (const d of fetchErrorInfo.details) {
+      lines.push(`- ${d.ticker}: [${d.code || 'upstream'}] ${d.message}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+async function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      /* Permission denied: fall through to the legacy copy path. */
+    }
+  }
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  document.body.removeChild(area);
+  return ok;
+}
+
+async function retryFailedFetch() {
+  const tickers = [...fetchErrorTickers];
+  if (!tickers.length) return;
+  el.errorRetry.disabled = true;
+  el.errorRetry.textContent = 'Retrying…';
+  const results = await Promise.allSettled(tickers.map(t => refreshTicker(t)));
+  const failures = results
+    .filter(r => r.status === 'fulfilled' && r.value && !r.value.ok)
+    .map(r => r.value);
+  if (failures.length) {
+    reportFetchErrors(failures);
+  } else {
+    hideFetchError();
+    showFormMessage('Data refreshed.', 'ok');
+  }
+  el.errorRetry.disabled = false;
+  el.errorRetry.textContent = 'Retry';
 }
 
 async function fetchPortfolio() {
@@ -552,7 +720,14 @@ async function fetchDividends(ticker) {
   const res = await fetch('/api/dividends?symbol=' + encodeURIComponent(ticker));
   let json = {};
   try { json = await res.json(); } catch (e) { /* non-JSON */ }
-  if (!res.ok) throw new Error(json.error || ('Request failed with status ' + res.status));
+  if (!res.ok) {
+    const err = new Error(json.error || ('Request failed with status ' + res.status));
+    err.code = json.code || ('http_' + res.status);
+    err.hint = json.hint || '';
+    err.symbol = json.symbol || ticker;
+    err.status = res.status;
+    throw err;
+  }
   const dividends = (json.dividends || [])
     .map(d => ({ date: d.date, amount: Number(d.amount) || 0 }))
     .filter(d => d.date && d.amount > 0)
@@ -581,14 +756,15 @@ function holdingStillCurrent(ticker, holding) {
 
 async function refreshTicker(ticker) {
   let holding = getHolding(ticker);
-  if (!holding || deletedTickers.has(ticker)) return;
+  if (!holding || deletedTickers.has(ticker)) return null;
   const previousStatus = holding.status;
   const previousError = holding.lastError;
   let changed = false;
+  let result;
   try {
     const data = await fetchDividends(ticker);
     // The row may have been deleted while the request was in flight.
-    if (!holdingStillCurrent(ticker, holding)) return;
+    if (!holdingStillCurrent(ticker, holding)) return null;
     if (data.name && data.name !== holding.name) { holding.name = data.name; changed = true; }
     if (data.price !== holding.price) { holding.price = data.price; changed = true; }
     if (!sameJson(data.dividends, holding.dividends)) { holding.dividends = data.dividends; changed = true; }
@@ -608,35 +784,60 @@ async function refreshTicker(ticker) {
     if (previousStatus !== 'ok' || previousError) changed = true;
     holding.status = 'ok';
     holding.lastError = null;
+    holding.lastErrorHint = null;
+    holding.lastErrorCode = null;
     if (changed) {
       holding.lastFetched = new Date().toISOString();
       touch(holding);
     }
+    result = { ticker, ok: true };
   } catch (e) {
-    if (!holdingStillCurrent(ticker, holding)) return;
+    if (!holdingStillCurrent(ticker, holding)) return null;
     const message = String((e && e.message) || e);
+    const code = (e && e.code) || ((e instanceof TypeError) ? 'network' : 'upstream');
+    const hint = (e && e.hint) || (ERROR_FALLBACKS[code] ? ERROR_FALLBACKS[code].hint : '');
     if (previousStatus !== 'error' || previousError !== message) changed = true;
     holding.status = 'error';
     holding.lastError = message;
+    holding.lastErrorHint = hint;
+    holding.lastErrorCode = code;
     if (changed) touch(holding);
+    result = { ticker, ok: false, code, message, hint };
   }
-  if (!holdingStillCurrent(ticker, holding)) return;
+  if (!holdingStillCurrent(ticker, holding)) return null;
   render();
   if (changed) await dbSaveHolding(holding, true);
+  return result;
 }
 
 async function refreshAll() {
-  if (refreshing) return;
+  if (refreshing) return [];
   refreshing = true;
-  await Promise.allSettled(state.holdings.map(h => refreshTicker(h.ticker)));
+  const results = await Promise.allSettled(state.holdings.map(h => refreshTicker(h.ticker)));
   refreshing = false;
   persist();
+  const failures = results
+    .filter(r => r.status === 'fulfilled' && r.value && !r.value.ok)
+    .map(r => r.value);
+  if (failures.length) reportFetchErrors(failures);
+  else if (!el.errorBanner.hidden) hideFetchError();
+  return failures;
 }
 
 async function addTickers(raw, shares) {
   const parts = String(raw || '').split(/[\s,;]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
-  const valid = [...new Set(parts.map(t => t.replace(/\.NS$/, '')).filter(t => /^(?=.{2,15}$)[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$/.test(t)))];
-  if (!valid.length) { el.formMsg.textContent = 'Enter valid NSE tickers (e.g. RELIANCE, TCS).'; return; }
+  const normalized = parts.map(t => t.replace(/\.NS$/, ''));
+  const tickerRe = /^(?=.{2,15}$)[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$/;
+  const valid = [...new Set(normalized.filter(t => tickerRe.test(t)))];
+  const invalid = [...new Set(normalized.filter(t => !tickerRe.test(t)))];
+  if (!valid.length) {
+    showFormMessage(
+      'No valid NSE tickers found' + (invalid.length ? ': ' + invalid.join(', ') : '') +
+      '. Use 2–15 letters or digits, e.g. RELIANCE or BAJAJ-AUTO.',
+      'error'
+    );
+    return;
+  }
   const addedHoldings = [];
   for (const t of valid) {
     if (getHolding(t)) continue;
@@ -654,7 +855,11 @@ async function addTickers(raw, shares) {
     state.holdings.push(holding);
     addedHoldings.push(holding);
   }
-  el.formMsg.textContent = addedHoldings.length ? 'Adding ' + valid.join(', ') + '…' : 'Already in your list.';
+  const skipped = invalid.length ? ' Skipped invalid: ' + invalid.join(', ') + '.' : '';
+  showFormMessage(
+    (addedHoldings.length ? 'Adding ' + valid.join(', ') + '…' : 'Already in your list.') + skipped,
+    invalid.length ? 'error' : 'info'
+  );
   if (addedHoldings.length) {
     persist();
     await Promise.all(addedHoldings.map(h => dbSaveHolding(h, true)));
@@ -730,6 +935,7 @@ function openImport() {
 function closeImport() { el.importModal.hidden = true; }
 
 async function refreshImportedHoldings(holdings) {
+  const failures = [];
   await Promise.allSettled(holdings.map(async h => {
     try {
       const data = await fetchDividends(h.ticker);
@@ -738,14 +944,23 @@ async function refreshImportedHoldings(holdings) {
       h.dividends = data.dividends;
       h.status = 'ok';
       h.lastError = null;
+      h.lastErrorHint = null;
+      h.lastErrorCode = null;
     } catch (e) {
+      const message = String((e && e.message) || e);
+      const code = (e && e.code) || ((e instanceof TypeError) ? 'network' : 'upstream');
+      const hint = (e && e.hint) || (ERROR_FALLBACKS[code] ? ERROR_FALLBACKS[code].hint : '');
       h.status = 'error';
-      h.lastError = String((e && e.message) || e);
+      h.lastError = message;
+      h.lastErrorHint = hint;
+      h.lastErrorCode = code;
+      failures.push({ ticker: h.ticker, ok: false, code, message, hint });
     }
     h.lastFetched = new Date().toISOString();
     normalizeHolding(h);
     touch(h);
   }));
+  if (failures.length) reportFetchErrors(failures);
   persist();
   await dbImportAll(holdings);
 }
@@ -880,7 +1095,8 @@ function fmtDate(d) {
 function statusTitle(h) {
   if (h.status === 'ok') return 'Live data';
   if (h.status === 'pending') return 'Fetching…';
-  return h.lastError || 'Fetch failed';
+  const base = h.lastError || 'Fetch failed';
+  return h.lastErrorHint ? base + ' — ' + h.lastErrorHint : base;
 }
 
 // ---------- rendering ----------
@@ -969,7 +1185,10 @@ function totalDividendCell(h, year) {
 
 function rowFor(h, year) {
   const dot = `<span class="dot ${h.status}" title="${esc(statusTitle(h))}"></span>`;
-  const stockCell = `<td><div class="stock-cell">${dot}<span class="ticker-badge" title="${esc(h.ticker)} — ${esc(h.name)}">${esc(h.ticker)}</span><span class="stock-name" title="${esc(h.name)}">${esc(h.name)}</span></div></td>`;
+  const errorFlag = h.status === 'error'
+    ? `<span class="row-error" title="${esc(statusTitle(h))}" aria-label="Dividend refresh failed">⚠</span>`
+    : '';
+  const stockCell = `<td><div class="stock-cell">${dot}<span class="ticker-badge" title="${esc(h.ticker)} — ${esc(h.name)}">${esc(h.ticker)}</span><span class="stock-name" title="${esc(h.name)}">${esc(h.name)}</span>${errorFlag}</div></td>`;
   const actions = `<td class="num">${actionsCell(h)}</td>`;
   const yieldCell = `<td class="num yield-cell" title="Trailing 12-month dividend per share ÷ current price">${fmtPct(yieldFor(h))}</td>`;
 
@@ -1074,7 +1293,11 @@ function renderTable() {
       sortHeader('Yield', 'yield', { num: true, title: 'Trailing 12-month dividend per share ÷ current price' }) +
       '<th></th>';
 
-  if (!state.holdings.length) {
+  const empty = !state.holdings.length;
+  el.emptyState.hidden = !empty;
+  el.tableWrap.hidden = empty;
+  el.scrollHint.hidden = empty;
+  if (empty) {
     el.holdingsBody.innerHTML = `<tr><td colspan="${all ? 5 : 9}" class="empty-cell">No stocks yet — add NSE tickers above (e.g. RELIANCE, TCS, HDFCBANK).</td></tr>`;
     return;
   }
@@ -1705,7 +1928,7 @@ el.tableHead.addEventListener('keydown', e => {
 function clearSelectedYear() {
   const year = state.year;
   if (year === 'all') {
-    el.formMsg.textContent = 'Select a specific year before clearing.';
+    showFormMessage('Select a specific year before clearing.', 'error');
     return;
   }
   const affected = [];
@@ -1714,7 +1937,7 @@ function clearSelectedYear() {
     if (keys.length) affected.push({ holding: h, keys });
   }
   if (!affected.length) {
-    el.formMsg.textContent = `No saved quantities for ${year}.`;
+    showFormMessage(`No saved quantities for ${year}.`, 'info');
     return;
   }
   const total = affected.reduce((sum, item) => sum + item.keys.length, 0);
@@ -1728,6 +1951,7 @@ function clearSelectedYear() {
   persist();
   dbImportAll(affected.map(item => item.holding));
   el.formMsg.textContent = `Cleared ${total} quarter value(s) for ${year}. Enter the correct quantities.`;
+  el.formMsg.className = 'ok';
 }
 
 el.clearYearBtn.addEventListener('click', clearSelectedYear);
@@ -1738,7 +1962,27 @@ el.addForm.addEventListener('submit', e => {
   el.addInput.value = '';
 });
 
+el.emptyState.addEventListener('click', e => {
+  const btn = e.target.closest('button[data-example]');
+  if (!btn) return;
+  addTickers(btn.dataset.example, el.addShares.value);
+});
+
 el.refreshAllBtn.addEventListener('click', refreshAll);
+
+el.errorDismiss.addEventListener('click', hideFetchError);
+el.errorRetry.addEventListener('click', retryFailedFetch);
+el.errorCopy.addEventListener('click', async () => {
+  const text = errorDebugText();
+  let ok = false;
+  try { ok = await copyText(text); } catch (e) { ok = false; }
+  if (!ok) {
+    window.prompt('Copy the debug info below (Ctrl/Cmd+C):', text);
+    return;
+  }
+  el.errorCopy.textContent = 'Copied ✓';
+  setTimeout(() => { el.errorCopy.textContent = 'Copy debug info'; }, 1800);
+});
 
 el.historyClose.addEventListener('click', closeHistory);
 el.historyModal.addEventListener('click', e => { if (e.target === el.historyModal) closeHistory(); });
@@ -1808,9 +2052,20 @@ el.holdingsBody.addEventListener('click', e => {
   const ticker = btn.dataset.ticker;
   const action = btn.dataset.action;
   if (action === 'history') openHistory(ticker);
-  if (action === 'refresh') refreshTicker(ticker);
+  if (action === 'refresh') {
+    refreshTicker(ticker).then(result => {
+      if (!result) return;
+      if (result.ok) {
+        clearFetchError(ticker);
+        showFormMessage('Refreshed ' + ticker + '.', 'ok');
+      } else {
+        reportFetchErrors([result]);
+      }
+    });
+  }
   if (action === 'delete') {
     if (state.historyTicker === ticker) closeHistory();
+    clearFetchError(ticker);
     // Tombstone first: this blocks the in-flight refresh/poll from
     // re-saving the row after the DELETE request.
     deletedTickers.set(ticker, Date.now());

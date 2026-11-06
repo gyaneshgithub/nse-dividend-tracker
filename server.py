@@ -11,6 +11,9 @@ Dividend data
 -------------
 GET /api/dividends?symbol=RELIANCE
     -> { symbol, name, price, currency, annualDividend, yieldPct, dividends: [{date, amount}] }
+    Errors add a stable code and a user-facing hint:
+    -> { error, code, hint, symbol } with 400 (invalid symbol), 404 (no page or
+       no history), 429 (rate limited) or 502 (network/upstream)
 
 Portfolio storage (ChromaDB)
 ----------------------------

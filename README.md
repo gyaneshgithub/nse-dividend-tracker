@@ -20,6 +20,14 @@ are included in this repository.*
 ## Features
 
 - **Live NSE dividend history** from stockanalysis.com, cached locally.
+- **Guided first run** — an empty-state panel explains how to add a ticker,
+  where dividend data comes from, and that everything is stored locally, with
+  one-click examples.
+- **Actionable fetch errors** — network, rate-limit, missing-history and
+  ticker-format failures explain what happened, offer Retry, and can copy a
+  debug report.
+- **Small-screen friendly** — the table scrolls horizontally with a sticky
+  header and pinned stock column, and controls reflow for narrow layouts.
 - **Quarterly quantities** so income follows the shares you actually held in
   each quarter, not just today's holding.
 - **Projected next year income** — the sum of each stock's peak quarterly

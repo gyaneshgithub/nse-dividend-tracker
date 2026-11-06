@@ -40,9 +40,72 @@
       <input id="add-shares" type="number" min="0" value="1" title="Default quantity held in each quarter — you can edit every quarter afterwards">
       <button type="submit" title="Add these NSE stocks to your tracker">＋ Add</button>
     </form>
-    <div id="form-msg"></div>
+    <div id="form-msg" aria-live="polite"></div>
 
-    <div class="table-wrap">
+    <div id="error-banner" class="error-banner" role="alert" hidden>
+      <div class="error-banner-text">
+        <div class="error-banner-title" id="error-banner-title"></div>
+        <div class="error-banner-message" id="error-banner-message"></div>
+        <div class="error-banner-hint" id="error-banner-hint"></div>
+        <div class="error-banner-meta" id="error-banner-meta"></div>
+      </div>
+      <div class="error-banner-actions">
+        <button type="button" id="error-retry">Retry</button>
+        <button type="button" id="error-copy" class="secondary">Copy debug info</button>
+        <button type="button" class="icon-btn" id="error-dismiss" aria-label="Dismiss error" title="Dismiss">✕</button>
+      </div>
+    </div>
+
+    <section id="empty-state" class="empty-state" aria-labelledby="empty-title" hidden>
+      <div class="empty-hero">
+        <div class="empty-icon" aria-hidden="true">💰</div>
+        <div>
+          <h2 id="empty-title">Start tracking your NSE dividend income</h2>
+          <p>Add the stocks you own. The tracker fetches each company's dividend
+            history and lets you record how many shares you held each quarter.</p>
+        </div>
+      </div>
+      <ol class="empty-steps">
+        <li>
+          <span class="step-num" aria-hidden="true">1</span>
+          <div>
+            <strong>Add a ticker</strong>
+            <p>Type one or more NSE symbols in the box above — for example
+              <code>RELIANCE</code>, <code>TCS</code> or <code>HDFCBANK</code>.
+              Set the default quarterly quantity (you can edit every quarter
+              later) and press <strong>＋ Add</strong>.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num" aria-hidden="true">2</span>
+          <div>
+            <strong>Dividend data comes from stockanalysis.com</strong>
+            <p>Prices, yields and payout history are fetched live and cached for
+              6 hours. If the source is unreachable, your saved quantities are
+              never touched.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num" aria-hidden="true">3</span>
+          <div>
+            <strong>Everything stays on this computer</strong>
+            <p>Holdings are stored in a local ChromaDB database with a JSON
+              backup mirror. There is no account, no cloud sync and no analytics.
+              Only dividend lookups leave this machine.</p>
+          </div>
+        </li>
+      </ol>
+      <div class="empty-actions">
+        <span>Try a common stock:</span>
+        <button type="button" class="secondary" data-example="RELIANCE">RELIANCE</button>
+        <button type="button" class="secondary" data-example="TCS">TCS</button>
+        <button type="button" class="secondary" data-example="HDFCBANK">HDFCBANK</button>
+      </div>
+    </section>
+
+    <p class="scroll-hint" id="scroll-hint" hidden>Swipe sideways to see all quarters · tap a quantity to edit it.</p>
+
+    <div class="table-wrap" id="table-wrap">
       <table>
         <thead><tr id="table-head"></tr></thead>
         <tbody id="holdings-body"></tbody>

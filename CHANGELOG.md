@@ -6,6 +6,15 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **First-run onboarding.** When the tracker is empty, a short panel explains
+  how to add an NSE ticker, that dividend data comes from stockanalysis.com and
+  is cached for six hours, and that holdings are stored locally. Example chips
+  add a common stock in one click.
+- **Actionable fetch errors.** Dividend failures now return a machine-readable
+  `code` and a plain-language `hint` alongside `error`, distinguishing invalid
+  tickers, missing dividend history, network failures, rate limiting and
+  upstream errors. The UI shows a dismissible banner with the reason,
+  **Retry**, and **Copy debug info**.
 - **Portfolio insight** popup. A read-only, on-demand view of dividend health:
   an overall 0–100 score, income-resilience, growth and diversification
   components, plain-language strengths, risks and watchlist, and charts for
@@ -15,6 +24,9 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- **Narrow-screen layout.** On phones and small windows the controls and summary
+  cards reflow, the table scrolls horizontally with a sticky header and a pinned
+  stock column, and a swipe hint appears above it.
 - **Code structure split with no behaviour change.** The UI is now an HTML
   shell (`templates/index.html`) plus `static/app.css` and `static/app.js`,
   loaded with plain `<link>`/`<script>` tags — still no bundler, npm or CDN.

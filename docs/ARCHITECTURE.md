@@ -48,7 +48,9 @@ Each module owns its routes and the storage calls they need.
 - `portfolio.py` — `/api/portfolio` reads, upserts, deletes and bulk import,
   plus `/api/revision`.
 - `dividends.py` — `/api/dividends`; resolves `server.get_dividends` at request
-  time so the documented patch point still works.
+  time so the documented patch point still works. Failures return `error` plus
+  a stable `code` (invalid symbol, missing history, network, rate limit,
+  upstream) and a user-facing `hint`.
 - `analysis.py` — `/api/analysis`, `/api/insight` and `/api/search`.
 - `system.py` — `/api/health` and `/api/storage`.
 - `common.py` — shared storage-status and storage-error helpers.
@@ -93,9 +95,12 @@ and behaviour live in `static/` and are loaded with plain `<link>` and
 
 ### `static/app.css` and `static/app.js`
 
-- `app.css` — all dashboard styling (layout, tables, cards, insight popup).
+- `app.css` — all dashboard styling (layout, tables, cards, insight popup) and
+  the narrow-screen rules: sticky table header, pinned stock column, and
+  reflowed controls.
 - `app.js` — table rendering, import parsing, analysis, insight, search,
-  sorting, and cross-window synchronization.
+  sorting, cross-window synchronization, the first-run onboarding panel, and
+  the fetch-error banner with retry/debug-copy actions.
 - Both are served by Flask's built-in static route; `Cache-Control: no-store`
   applies to every response, so edits show up on reload.
 

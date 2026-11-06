@@ -13,6 +13,21 @@ python run.py       # any platform
 Open <http://localhost:8901/Dividend%20tracker>. The status pill in the header
 shows whether the local ChromaDB connection is healthy.
 
+## First run
+
+A fresh tracker shows a short onboarding panel instead of an empty table. It
+explains the three things you need to know:
+
+1. **How to add a stock** — type an NSE symbol in the add box (or click one of
+   the example chips) and set the starting quarterly quantity.
+2. **Where the data comes from** — prices, yields and dividend history are
+   fetched live from stockanalysis.com and cached for six hours.
+3. **Where your data lives** — holdings stay in a local ChromaDB database with a
+   JSON mirror on this computer. There is no account or cloud sync; only
+   dividend lookups leave the machine.
+
+The panel disappears as soon as the first stock is added.
+
 ## The dashboard
 
 The five cards at the top summarize the selected year:
@@ -40,8 +55,13 @@ quantities; earlier years are never changed.
 3. Click **＋ Add**.
 
 The app fetches the company name, current price, and dividend history. A
-green dot means the refresh succeeded; red means it failed and the error is in
-the row's tooltip.
+green dot means the refresh succeeded; a red dot plus a ⚠ marker means it
+failed. The error banner above the table explains what went wrong and offers
+**Retry** and **Copy debug info**.
+
+Ticker validation is forgiving: commas and spaces separate multiple symbols,
+`.NS` is removed, and invalid symbols are skipped with a clear message. Use the
+NSE trading symbol (`RELIANCE`), not the company name.
 
 The starting quantity is applied **once** to every quarter in the fetched
 dividend history where a dividend was paid. That gives you an immediate
@@ -91,6 +111,11 @@ sort last.
 Upstream responses are cached for six hours by default. Change
 `DIVIDEND_CACHE_TTL` in `.env` if you need fresher data. Refreshing updates
 names, prices, and dividend history; it does not overwrite your quantities.
+
+If a fetch fails, an error banner explains whether the problem is the ticker,
+a missing dividend history, the network, rate limiting, or the upstream site.
+Use **Retry** to try again, or **Copy debug info** to copy the ticker, error
+code, message, storage status and browser details for troubleshooting.
 
 ## Bulk import
 
@@ -238,8 +263,9 @@ the all-years view has no single base year.
 
 ### Why does a stock show a red dot?
 
-The last upstream fetch failed. Hover the dot to see the error. The stock and
-your quantities remain saved. Try **Refresh** later.
+The last upstream fetch failed. The error banner above the table explains why,
+and the row's tooltip has the same message. The stock and your quantities remain
+saved; use **Retry** in the banner or the row's **🔄** button later.
 
 ### Why is a new year empty?
 
@@ -269,6 +295,9 @@ is disabled by default.
 
 ### Can I run it on a phone?
 
-The web UI is responsive, but the server must run on a computer that can reach
-stockanalysis.com. Exposing it to your local network is possible with
-`HOST=0.0.0.0`, but there is no authentication. Use a trusted network only.
+The web UI is responsive. On a narrow screen the summary cards stack, the
+controls wrap, and the table scrolls sideways with the stock column pinned and
+the header stuck to the top; a swipe hint appears above the table. The server
+must still run on a computer that can reach stockanalysis.com. Exposing it to
+your local network is possible with `HOST=0.0.0.0`, but there is no
+authentication. Use a trusted network only.

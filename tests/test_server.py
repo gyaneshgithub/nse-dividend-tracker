@@ -154,6 +154,57 @@ def test_dividends_endpoint_uses_upstream(client, monkeypatch):
     assert client.get("/api/dividends?symbol=bad symbol").status_code == 400
 
 
+def test_dividends_errors_include_code_and_hint(client, monkeypatch):
+    import server
+
+    def missing(_symbol):
+        raise LookupError("none")
+
+    monkeypatch.setattr(server, "get_dividends", missing)
+    response = client.get("/api/dividends?symbol=NODIV")
+    assert response.status_code == 404
+    body = response.get_json()
+    assert body["code"] == "no_history"
+    assert body["symbol"] == "NODIV"
+    assert body["hint"]
+
+    invalid = client.get("/api/dividends?symbol=bad symbol").get_json()
+    assert invalid["code"] == "invalid_symbol"
+    assert invalid["hint"]
+
+    def bad_value(_symbol):
+        raise ValueError("Invalid NSE symbol")
+
+    monkeypatch.setattr(server, "get_dividends", bad_value)
+    response = client.get("/api/dividends?symbol=TEST")
+    assert response.status_code == 400
+    assert response.get_json()["code"] == "invalid_symbol"
+
+
+def test_dividends_maps_network_and_rate_limit_errors(client, monkeypatch):
+    import urllib.error
+
+    import server
+
+    def network(_symbol):
+        raise urllib.error.URLError("name resolution failed")
+
+    monkeypatch.setattr(server, "get_dividends", network)
+    response = client.get("/api/dividends?symbol=TEST")
+    assert response.status_code == 502
+    body = response.get_json()
+    assert body["code"] == "network"
+    assert "name resolution failed" in body["hint"]
+
+    def limited(_symbol):
+        raise urllib.error.HTTPError("https://example", 429, "Too Many Requests", None, None)
+
+    monkeypatch.setattr(server, "get_dividends", limited)
+    response = client.get("/api/dividends?symbol=TEST")
+    assert response.status_code == 429
+    assert response.get_json()["code"] == "rate_limited"
+
+
 def test_search_and_storage_endpoints(client):
     client.put("/api/portfolio/INFY", json=holding())
     assert client.get("/api/search?q=INFY").status_code == 200
