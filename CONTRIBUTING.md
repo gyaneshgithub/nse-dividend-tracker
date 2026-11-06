@@ -41,7 +41,8 @@ paths, shell assumptions, or case-sensitive filenames.
   tests at real user data.
 - Mock `market._fetch_html` or `server.get_dividends` in tests; do not depend on
   the network.
-- Keep `templates/index.html` dependency-free (vanilla HTML/CSS/JS).
+- Keep `templates/index.html`, `static/app.css` and `static/app.js`
+  dependency-free (vanilla HTML/CSS/JS).
 
 ## Privacy rules
 

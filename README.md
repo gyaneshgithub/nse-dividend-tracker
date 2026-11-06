@@ -169,13 +169,16 @@ native run. Do not expose the port to the public internet.
 
 ```text
 .
-├── server.py              Flask app and JSON API
+├── server.py              Flask app: guards, headers, errors, startup
+├── routes/                Flask blueprints by area (pages, portfolio, dividends, ...)
 ├── db.py                  ChromaDB storage, merging, tombstones, analysis
 ├── insight.py             Read-only portfolio scoring and narrative
 ├── market.py              NSE dividend fetch, parse, cache
 ├── run.py                 Universal launcher (creates .venv on first run)
 ├── start.sh / start.bat   Platform wrappers
-├── templates/index.html   Single-page UI
+├── templates/index.html   Page shell (initial state injected)
+├── static/app.css         Dashboard styles
+├── static/app.js          Dashboard behaviour (vanilla JS)
 ├── scripts/               Setup, smoke, and repository audits
 ├── tests/                 pytest suite
 ├── docs/                  Setup, user, ChromaDB, and architecture guides

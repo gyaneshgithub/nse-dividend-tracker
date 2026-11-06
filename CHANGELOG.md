@@ -15,6 +15,12 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- **Code structure split with no behaviour change.** The UI is now an HTML
+  shell (`templates/index.html`) plus `static/app.css` and `static/app.js`,
+  loaded with plain `<link>`/`<script>` tags — still no bundler, npm or CDN.
+  The Flask API is grouped into a `routes/` blueprint package (pages, portfolio,
+  dividends, analysis, system), while `server.py` stays the composition root
+  for request guards, security headers, error handlers and startup.
 - **Year rollover now copies the previous year's quarterly quantities into a
   newly added year.** When the calendar rolls over (for example from 2026 to
   2027), each holding inherits its Q1–Q4 quantities from the previous year, so

@@ -75,6 +75,9 @@ def main() -> int:
         "run.py",
         "requirements.txt",
         "templates/index.html",
+        "static/app.css",
+        "static/app.js",
+        "routes/__init__.py",
     ]
     for relative in required:
         path = ROOT / relative

@@ -1,18 +1,22 @@
 # Architecture
 
 The tracker is a small local web application: a Flask server, an embedded
-ChromaDB store, a dividend fetcher, and one vanilla JavaScript page.
+ChromaDB store, a dividend fetcher, and one vanilla JavaScript page (HTML
+shell plus static CSS/JS assets).
 
 ```text
-┌──────────────────────────────┐
-│ Browser (templates/index.html)│
-│  table · import · analysis   │
-│  insight · search            │
-└──────────────┬───────────────┘
+┌───────────────────────────────────────┐
+│ Browser (templates/index.html +       │
+│  static/app.css + static/app.js)      │
+│  table · import · analysis            │
+│  insight · search                     │
+└──────────────┬────────────────────────┘
                │ JSON over HTTP
 ┌──────────────▼───────────────┐
 │ server.py (Flask)            │
-│  page routes · /api/*        │
+│  guards · headers · errors   │
+│  routes/ blueprints          │
+│  page + /api/* endpoints     │
 └───────┬───────────────┬──────┘
         │               │
 ┌───────▼──────┐  ┌─────▼──────────────┐
@@ -26,12 +30,28 @@ ChromaDB store, a dividend fetcher, and one vanilla JavaScript page.
 
 ### `server.py`
 
+- Composition root: creates the Flask app, registers the blueprints, and
+  starts the server.
 - Loads `.env` before importing `db`, because `db` resolves storage paths at
   import time.
-- Defines the page aliases and the JSON API.
+- Adds the cross-origin write guard, security headers and JSON error handlers.
 - Fails fast at startup if ChromaDB cannot be opened. Running without
   persistence would silently lose holdings.
 - Adds `Cache-Control: no-store` so browsers do not cache portfolio responses.
+
+### `routes/`
+
+Blueprints grouped by area, registered by `routes.register_blueprints(app)`.
+Each module owns its routes and the storage calls they need.
+
+- `pages.py` — the page aliases and Jinja render of `index.html`.
+- `portfolio.py` — `/api/portfolio` reads, upserts, deletes and bulk import,
+  plus `/api/revision`.
+- `dividends.py` — `/api/dividends`; resolves `server.get_dividends` at request
+  time so the documented patch point still works.
+- `analysis.py` — `/api/analysis`, `/api/insight` and `/api/search`.
+- `system.py` — `/api/health` and `/api/storage`.
+- `common.py` — shared storage-status and storage-error helpers.
 
 ### `db.py`
 
@@ -66,9 +86,18 @@ ChromaDB store, a dividend fetcher, and one vanilla JavaScript page.
 
 ### `templates/index.html`
 
-The complete UI: layout, styles, table rendering, import parsing, analysis,
-insight, search, sorting, and cross-window synchronization. No build step,
-npm, CDN, or framework.
+The page shell: the static markup plus one inline `window.__INITIAL__` script
+that Flask fills with the starting holdings, revision and storage status. Styles
+and behaviour live in `static/` and are loaded with plain `<link>` and
+`<script>` tags, so the browser needs no build step, npm, CDN, or framework.
+
+### `static/app.css` and `static/app.js`
+
+- `app.css` — all dashboard styling (layout, tables, cards, insight popup).
+- `app.js` — table rendering, import parsing, analysis, insight, search,
+  sorting, and cross-window synchronization.
+- Both are served by Flask's built-in static route; `Cache-Control: no-store`
+  applies to every response, so edits show up on reload.
 
 ## Data model
 

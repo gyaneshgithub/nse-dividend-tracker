@@ -8,11 +8,15 @@ Tool-specific pointer files (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`,
 
 A local-first NSE dividend tracker:
 
-- `server.py` — Flask app, page routes, JSON API, startup checks.
+- `server.py` — Flask app composition root: request guards, headers, error
+  handlers, startup.
+- `routes/` — blueprints by area: pages, portfolio storage, dividends,
+  analysis/insight/search, system status.
 - `db.py` — embedded ChromaDB storage, merging, tombstones, analysis, search.
 - `insight.py` — read-only portfolio scoring and narrative (no writes, no network).
 - `market.py` — fetches and parses dividend history from stockanalysis.com.
-- `templates/index.html` — the entire UI (vanilla HTML/CSS/JS, no build step).
+- `templates/index.html` — page shell; `static/app.css` and `static/app.js`
+  hold the UI styling and behaviour (vanilla, no build step).
 - `run.py` — universal launcher; creates `.venv` on first run.
 - `scripts/` — setup check, smoke test, repository privacy audit.
 - `tests/` — pytest suite.
