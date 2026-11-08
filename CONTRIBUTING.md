@@ -18,14 +18,24 @@ Start the app with `python server.py` or `python run.py --no-venv`.
 ## Before you open a pull request
 
 ```bash
+python scripts/preflight.py
+```
+
+That runs the same gate as the Git hooks:
+
+```bash
 python -m ruff check .
 python -m pytest
 python scripts/smoke_test.py
 python scripts/check_repo.py
+python scripts/check_docs.py
 ```
 
-All four must pass. CI also runs on Windows and macOS, so avoid POSIX-only
-paths, shell assumptions, or case-sensitive filenames.
+All five must pass. Install the hooks once per clone with
+`python scripts/install_hooks.py`; after that `git commit` runs lint and tests,
+and `git push` also runs the smoke test, privacy audit and documentation check.
+CI also runs on Windows and macOS, so avoid POSIX-only paths, shell
+assumptions, or case-sensitive filenames.
 
 ## Code guidelines
 

@@ -104,6 +104,37 @@ year to `0`. This is useful after copying a spreadsheet with the wrong values.
 It asks for confirmation and cannot be undone. The all-years view cannot be
 cleared.
 
+## Table columns
+
+A **calendar year** shows the editable quarter columns:
+
+| Column | Meaning |
+| --- | --- |
+| **Stock** | Ticker, company name, and refresh status (green dot = live, red dot + ⚠ = last fetch failed). |
+| **Q1–Q4** | Quantity you held that quarter. The hint under each cell is the dividend per share paid in that quarter. |
+| **Annual income** | `Σ (dividend per share × quantity in the payout's quarter)`. |
+| **Total dividend** | Per share for the year: Q1+Q2+Q3+Q4. Quantity does not affect it. |
+| **DPS YoY** | Change in total dividend per share versus the previous year. Shows `—` when either year has no payout. |
+| **DPS CAGR** | Compound annual growth of dividend per share over up to the last five years. |
+| **Yield (TTM)** | Trailing 12-month dividend per share ÷ current price. |
+
+**DPS CAGR** uses `(end ÷ start) ^ (1 ÷ years) − 1`, where `years` is the
+distance between the first and last year in the window. It uses up to five
+years ending at the selected year, ignores years with no payout, and shows `—`
+with fewer than two positive years. The small bar sparkline beside it is that
+same series. CAGR only compares the endpoints, so a cut in the middle is
+invisible — use **DPS YoY** for the latest change. This column is uncapped,
+while the *Growth* projection caps CAGR at ±15% (see
+[projected next year income](#how-is-projected-next-year-income-calculated)).
+
+**All years** and **FY** views replace the quarter columns with:
+
+| Column | Meaning |
+| --- | --- |
+| **Total income** (all years) | Dividends across all recorded years. |
+| **FY income** (financial year) | Dividends whose payout date falls in that April–March window. |
+| **Total dividend** | Per-share total for the same period. |
+
 ## Sort the table
 
 Click any column heading to sort; click again to reverse. Stock, income, total
@@ -168,7 +199,11 @@ Click **📊 Analysis** to open the analysis panel. Choose a year to see:
 - income by year;
 - income by stock, including share of the year's income and TTM yield;
 - quarterly income bars;
-- the largest individual payouts.
+- the largest individual payouts;
+- a **year-on-year income bridge** that splits the change into quantity,
+  dividend-per-share, and composition effects;
+- **next year income scenarios** (conservative, base and growth);
+- a **monthly cashflow** breakdown by payment month (calendar year or FY).
 
 Click **↻ Recompute** to rebuild from the local database.
 
@@ -206,8 +241,8 @@ Choose a year (or **All years**) and move between four tabs:
 | **Holdings** | Per-stock income share, score, stability, dividend CAGR, payment streak, a five-year trend, and flags such as `cut`. |
 | **Method** | Weights, formula notes, inputs, deferred signals, and the disclaimer. |
 
-The overall score blends three components, renormalised over whichever ones are
-available:
+The overall score blends the components below, renormalised over whichever ones
+are available:
 
 - **Income resilience** (40%) — stability of each stock's annual dividend, how
   many consecutive years it has paid, and a penalty for cuts larger than 15%.
@@ -224,9 +259,11 @@ Selecting a past year scores only the dividend history up to that year. If a
 period has no recorded income, the overall score is withheld and the popup
 explains what is missing.
 
-Signals that need price history or external data (valuation, technicals,
-young-consumer exposure) are listed as deferred instead of being scored as
-zero. Click **↻ Recompute** after editing holdings.
+Signals that need data the tracker does not collect (technicals, young-consumer
+exposure) are listed as deferred instead of being scored as zero. Valuation is
+scored as **Yield vs own history** when at least five refresh snapshots exist
+for a holding; before that it is shown as not yet available. Click
+**↻ Recompute** after editing holdings.
 
 ## Delete a stock
 

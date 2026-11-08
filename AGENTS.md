@@ -80,19 +80,24 @@ On macOS/Linux, `./start.sh`; on Windows, `start.bat`.
 
 ## Before finishing a change
 
-Run:
+Run the full gate:
+
+```bash
+python scripts/preflight.py
+```
+
+It runs, in order:
 
 ```bash
 python -m ruff check .
 python -m pytest
 python scripts/smoke_test.py
-```
-
-If the change touches packaging or tracked files, also run:
-
-```bash
 python scripts/check_repo.py
+python scripts/check_docs.py
 ```
+
+`python scripts/install_hooks.py` installs the same gate as Git hooks, so
+commits and pushes are checked even when a change is made outside OpenCode.
 
 Report what you changed, what you tested, and any remaining risk. Do not claim a
 Windows UI test unless you actually ran one; CI covers the Windows backend path.

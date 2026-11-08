@@ -30,16 +30,26 @@ are included in this repository.*
   header and pinned stock column, and controls reflow for narrow layouts.
 - **Quarterly quantities** so income follows the shares you actually held in
   each quarter, not just today's holding.
-- **Projected next year income** — the sum of each stock's peak quarterly
-  quantity × its total dividend per share, with the change versus the selected
-  year highlighted.
+- **Next-year income scenarios** — a conservative (average quantity), base
+  (peak quantity) and growth (dividend CAGR, capped at ±15%) projection, shown
+  on the dashboard and in Analysis and Insight.
+- **Dividend growth columns** — per-stock **DPS YoY** change and a five-year
+  **DPS CAGR** with a sparkline, so cuts and compounding are visible at a
+  glance.
+- **Financial-year view** — filter by India's April–March FY (FY 2026-27) or by
+  calendar year, with a monthly cashflow breakdown in Analysis.
 - **Automatic year rollover** — a new calendar year appears on 1 January with
   blank quantities; earlier years are preserved.
 - **Bulk import** from a spreadsheet or CSV: downloadable template, ticker plus Q1–Q4 quantities.
-- **Income analysis** by year, stock, and quarter, including monthly averages.
+- **Income analysis** by year, stock, and quarter, including monthly averages
+  and a year-on-year income bridge (quantity, dividend and composition).
+- **Portfolio briefing** — a read-only task list built from local data:
+  missing quantities, failed or stale fetches, dividend cuts, concentration and
+  scenario spread, with one-click actions.
 - **Portfolio insight** — a read-only popup that scores dividend health,
   explains concentration and cuts in plain language, and charts income by year
-  and by holding. Computed on demand from local data; nothing is stored.
+  and by holding. Includes a **Yield vs own history** component once five
+  refresh snapshots exist. Computed on demand from local data; nothing is stored.
 - **Semantic search** over indexed dividend payouts using ChromaDB.
 - **Multi-window safe** — every write bumps a revision; stale browser windows
   cannot overwrite newer edits or resurrect a deleted stock.
@@ -158,7 +168,23 @@ Useful checks:
 python scripts/check_setup.py   # dependencies, paths, ChromaDB self-test
 python scripts/smoke_test.py    # end-to-end API test on temporary storage
 python scripts/check_repo.py    # privacy / packaging audit
+python scripts/preflight.py     # everything CI requires, in order
 ```
+
+### Pre-commit and pre-push checks
+
+`scripts/install_hooks.py` points Git at the tracked hooks in `.githooks/`:
+
+```bash
+python scripts/install_hooks.py
+```
+
+After that, `git commit` runs lint plus the test suite, and `git push` also
+runs the smoke test, the repository privacy audit and the documentation check.
+A failing check blocks the operation. Use `python scripts/preflight.py` to run
+the same gate by hand, or `git commit --no-verify` / `git push --no-verify` to
+bypass it in an emergency. Hooks are local configuration: each clone must
+install them once.
 
 CI runs the test suite on Linux (Python 3.11–3.13), Windows, and macOS. See
 [.github/workflows/ci.yml](.github/workflows/ci.yml).
