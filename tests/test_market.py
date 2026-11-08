@@ -74,3 +74,22 @@ def test_get_dividends_caches_and_respects_ttl(monkeypatch):
 def test_get_dividends_rejects_invalid_symbol():
     with pytest.raises(ValueError):
         market.get_dividends("not a ticker")
+
+
+def test_get_dividends_tries_dot_slug_when_hyphen_returns_404(monkeypatch):
+    calls = []
+
+    def fake_fetch(symbol):
+        calls.append(symbol)
+        if symbol == "NAM-INDIA":
+            import urllib.error
+
+            raise urllib.error.HTTPError("url", 404, "Not Found", None, None)
+        if symbol == "NAM.INDIA":
+            return HTML.replace("RELIANCE", "NAM-INDIA").replace("Reliance Industries", "Nippon AMC")
+        raise AssertionError(symbol)
+
+    monkeypatch.setattr(market, "_fetch_html", fake_fetch)
+    payload = market.get_dividends("NAM-INDIA")
+    assert payload["symbol"] == "NAM-INDIA"
+    assert calls == ["NAM-INDIA", "NAM.INDIA"]

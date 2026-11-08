@@ -30,8 +30,19 @@ def _cache_ttl():
 
 
 CACHE_TTL = DEFAULT_CACHE_TTL
-SYMBOL_RE = re.compile(r"^(?=.{2,15}$)[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$")
+SYMBOL_RE = re.compile(r"^(?=.{2,15}$)[A-Z][A-Z0-9]*(?:[-.][A-Z0-9]+)*$")
 _cache = {}
+
+
+def _upstream_candidates(symbol):
+    """stockanalysis.com slugs sometimes use dots where NSE uses hyphens (NAM.INDIA)."""
+    ordered = [symbol, symbol.replace("-", "."), symbol.replace(".", "-")]
+    seen = set()
+    for candidate in ordered:
+        key = candidate.upper()
+        if key not in seen:
+            seen.add(key)
+            yield key
 
 
 def _fetch_html(symbol):
@@ -114,7 +125,18 @@ def get_dividends(symbol):
     cached = _cache.get(symbol)
     if cached and now - cached[0] < _cache_ttl():
         return cached[1]
-    html = _fetch_html(symbol)
-    payload = parse_dividends(symbol, html)
-    _cache[symbol] = (now, payload)
-    return payload
+    last_error = None
+    for upstream in _upstream_candidates(symbol):
+        try:
+            html = _fetch_html(upstream)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                last_error = exc
+                continue
+            raise
+        payload = parse_dividends(symbol, html)
+        _cache[symbol] = (now, payload)
+        return payload
+    if last_error is not None:
+        raise last_error
+    raise LookupError("No dividend data found for this ticker")

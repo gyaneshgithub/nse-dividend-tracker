@@ -995,7 +995,7 @@ async function refreshAll() {
 async function addTickers(raw, shares) {
   const parts = String(raw || '').split(/[\s,;]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
   const normalized = parts.map(t => t.replace(/\.NS$/, ''));
-  const tickerRe = /^(?=.{2,15}$)[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$/;
+  const tickerRe = /^(?=.{2,15}$)[A-Z][A-Z0-9]*(?:[-.][A-Z0-9]+)*$/;
   const valid = [...new Set(normalized.filter(t => tickerRe.test(t)))];
   const invalid = [...new Set(normalized.filter(t => !tickerRe.test(t)))];
   if (!valid.length) {

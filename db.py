@@ -48,7 +48,7 @@ DATA_DIR = _env_path("DIVIDEND_DATA_DIR", "data")
 BACKUP_FILE = os.path.join(DATA_DIR, "portfolio.json")
 EMBED_DIM = 384
 PRICE_HISTORY_MAX = 64
-SYMBOL_RE = re.compile(r"^(?=.{2,15}$)[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$")
+SYMBOL_RE = re.compile(r"^(?=.{2,15}$)[A-Z][A-Z0-9]*(?:[-.][A-Z0-9]+)*$")
 QUARTER_RE = re.compile(r"^\d{4}-Q[1-4]$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
