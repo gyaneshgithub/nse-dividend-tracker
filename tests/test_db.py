@@ -150,6 +150,41 @@ def test_analysis_growth_scenario_uses_capped_cagr(db):
     assert growth > base
 
 
+def test_income_bridge_decomposes_yoy_change(db):
+    db.save_holding(
+        holding(
+            quarters={"2025-Q2": 10, "2026-Q2": 20},
+            dividends=[
+                {"date": "2025-05-01", "amount": 2.0},
+                {"date": "2026-05-01", "amount": 2.0},
+            ],
+        )
+    )
+
+    bridge = db.analysis("2026")["incomeBridge"]
+    assert bridge["previousIncome"] == 20.0
+    assert bridge["currentIncome"] == 40.0
+    assert bridge["delta"] == 20.0
+    by_key = {row["key"]: row["amount"] for row in bridge["components"]}
+    assert by_key["quantity"] == 20.0
+    assert by_key["dps"] == 0.0
+
+
+def test_growth_by_ticker(db):
+    db.save_holding(
+        holding(
+            quarters={"2026-Q1": 1},
+            dividends=[
+                {"date": "2025-05-01", "amount": 2.0},
+                {"date": "2026-05-01", "amount": 2.5},
+            ],
+        )
+    )
+    growth = db.analysis("2026")["growthByTicker"]["INFY"]
+    assert growth["dpsYoyPct"] == 25.0
+    assert len(growth["dpsTrend"]) == 2
+
+
 def test_backup_mirror_restores_empty_database(db, tmp_path, monkeypatch):
     db.save_holding(holding())
     assert db.BACKUP_FILE.endswith("portfolio.json")

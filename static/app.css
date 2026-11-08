@@ -45,6 +45,12 @@ button.danger:disabled { opacity: 0.4; cursor: default; }
 .coach-priority.p2 { background: rgba(94, 92, 230, 0.2); color: #5e5ce6; }
 .coach-events { margin-top: 16px; color: #8e8e93; font-size: 12px; line-height: 1.45; }
 .coach-events li { margin: 4px 0; }
+.income-bridge { background: #2c2c2e; border-radius: 12px; padding: 10px 14px; margin: 0 0 12px; font-size: 12px; line-height: 1.45; color: #aeaeb2; }
+.income-bridge strong { color: #f2f2f7; }
+.income-bridge .bridge-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.income-bridge .bridge-pill { background: #3a3a3c; border-radius: 8px; padding: 4px 8px; font-size: 11px; }
+.dps-spark { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; vertical-align: middle; margin-right: 6px; }
+.dps-spark span { display: block; width: 4px; background: #5e5ce6; border-radius: 2px; min-height: 2px; opacity: 0.85; }
 
 .add-form { display: flex; gap: 8px; margin: 4px 0 8px; flex-wrap: wrap; }
 .add-form input[type="text"] { flex: 1; min-width: 220px; background: #2c2c2e; border: 1px solid #48484a; border-radius: 12px; padding: 11px 14px; color: #fff; font-size: 15px; }

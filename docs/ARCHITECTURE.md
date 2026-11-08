@@ -222,6 +222,10 @@ For a specific calendar year, analysis also returns `projections`:
 The all-years view omits `projections` and sets `projectedNextYearIncome` to
 `null`.
 
+For a specific calendar year, `incomeBridge` explains the move from the
+previous year (`quantity`, `dps`, `composition`), and `growthByTicker` carries
+`dpsYoyPct`, `dpsCagrPct` and a short `dpsTrend` series for the UI.
+
 ## Insight
 
 `GET /api/insight?year=YYYY|all` builds a descriptive score of dividend health

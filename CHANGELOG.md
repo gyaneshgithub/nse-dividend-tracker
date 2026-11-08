@@ -6,6 +6,9 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Income bridge and DPS growth columns.** Calendar-year analysis includes a
+  year-on-year income decomposition (`quantity`, `dps`, `composition`) plus
+  per-ticker DPS YoY and CAGR with sparklines on the dashboard table.
 - **Portfolio briefing (coach v1).** `coach.py` now emits prioritized tasks
   (missing quantities, failed or stale fetches, dividend cuts, concentration,
   scenario spread) and dividend context events. The **Briefing** header button

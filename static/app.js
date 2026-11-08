@@ -2,7 +2,7 @@
 const LS_HOLDINGS = 'dividendTracker.holdings.v1';
 const LS_SYNCED = 'dividendTracker.synced.v1';
 
-let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, coachOpen: false, coachYear: null, coachData: null, sortKey: null, sortDir: 'asc', summaryProjections: null };
+let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, coachOpen: false, coachYear: null, coachData: null, sortKey: null, sortDir: 'asc', summaryProjections: null, summaryAnalysis: null };
 let summaryProjectionToken = 0;
 let refreshing = false;
 const syncTimers = {};
@@ -31,6 +31,7 @@ let lastCalendarYear = new Date().getFullYear();
 const el = {
   yearFilter: document.getElementById('year-filter'),
   yearNote: document.getElementById('year-note'),
+  incomeBridge: document.getElementById('income-bridge'),
   clearYearBtn: document.getElementById('clear-year'),
   sumCount: document.getElementById('sum-count'),
   sumIncome: document.getElementById('sum-income'),
@@ -737,11 +738,68 @@ function renderProjectionScenarios() {
   }).join('');
 }
 
+function renderIncomeBridge(bridge) {
+  if (!el.incomeBridge) return;
+  if (!bridge || bridge.delta === null || bridge.delta === undefined) {
+    el.incomeBridge.hidden = true;
+    el.incomeBridge.innerHTML = '';
+    return;
+  }
+  const pct = bridge.deltaPct;
+  const sign = bridge.delta >= 0 ? '+' : '';
+  const pills = (bridge.components || []).map(c => {
+    const amt = Number(c.amount) || 0;
+    const s = amt >= 0 ? '+' : '';
+    return `<span class="bridge-pill" title="${esc(c.label)}">${esc(c.label)}: ${s}${fmtMoney(amt)}</span>`;
+  }).join('');
+  el.incomeBridge.hidden = false;
+  el.incomeBridge.innerHTML =
+    `<strong>${esc(String(bridge.previousYear))} → ${esc(String(bridge.currentYear))}</strong>: ` +
+    `${fmtMoney(bridge.previousIncome)} → ${fmtMoney(bridge.currentIncome)} ` +
+    `(${sign}${fmtMoney(bridge.delta)}${pct !== null && pct !== undefined ? `, ${sign}${pct.toFixed(1)}%` : ''}).` +
+    `<div class="bridge-pills">${pills}</div>`;
+}
+
+function growthForTicker(ticker) {
+  const table = state.summaryAnalysis && state.summaryAnalysis.growthByTicker;
+  return table ? table[ticker] : null;
+}
+
+function dpsYoyFor(h, year) {
+  const row = growthForTicker(h.ticker);
+  if (row && row.dpsYoyPct !== null && row.dpsYoyPct !== undefined) return row.dpsYoyPct;
+  const totals = h.yearTotals || {};
+  const curr = Number(totals[year]) || 0;
+  const prev = Number(totals[year - 1]) || 0;
+  if (prev <= 0 || curr <= 0) return null;
+  return ((curr - prev) / prev) * 100;
+}
+
+function dpsTrendFor(h) {
+  const row = growthForTicker(h.ticker);
+  if (row && row.dpsTrend && row.dpsTrend.length) return row.dpsTrend;
+  const totals = h.yearTotals || {};
+  return Object.keys(totals).map(y => ({ year: Number(y), amount: Number(totals[y]) }))
+    .filter(p => p.amount > 0).sort((a, b) => a.year - b.year).slice(-5);
+}
+
+function dpsSparkline(trend) {
+  if (!trend || !trend.length) return '';
+  const max = Math.max(...trend.map(p => Number(p.amount) || 0), 0.0001);
+  const bars = trend.map(p => {
+    const h = Math.max(2, Math.round(((Number(p.amount) || 0) / max) * 16));
+    return `<span style="height:${h}px" title="${p.year}: ₹${Number(p.amount).toFixed(2)}/sh"></span>`;
+  }).join('');
+  return `<span class="dps-spark" aria-hidden="true">${bars}</span>`;
+}
+
 async function loadSummaryProjections() {
   const year = state.year;
-  if (year === 'all' || year === null) {
+  if (year === 'all' || year === null || String(year).startsWith('fy:')) {
     state.summaryProjections = null;
+    state.summaryAnalysis = null;
     renderProjectionScenarios();
+    renderIncomeBridge(null);
     return;
   }
   const token = ++summaryProjectionToken;
@@ -750,15 +808,20 @@ async function loadSummaryProjections() {
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
     if (token !== summaryProjectionToken) return;
+    state.summaryAnalysis = json;
     state.summaryProjections = json.projections || null;
     if (json.projectedNextYearIncome !== null && json.projectedNextYearIncome !== undefined) {
       el.sumProjected.textContent = fmtMoney(json.projectedNextYearIncome);
     }
     renderProjectionScenarios();
+    renderIncomeBridge(json.incomeBridge || null);
+    renderTable();
   } catch (e) {
     if (token !== summaryProjectionToken) return;
     state.summaryProjections = null;
+    state.summaryAnalysis = null;
     renderProjectionScenarios();
+    renderIncomeBridge(null);
   }
 }
 
@@ -1251,6 +1314,12 @@ function rowFor(h, year) {
   const stockCell = `<td><div class="stock-cell">${dot}<span class="ticker-badge" title="${esc(h.ticker)} — ${esc(h.name)}">${esc(h.ticker)}</span><span class="stock-name" title="${esc(h.name)}">${esc(h.name)}</span>${errorFlag}</div></td>`;
   const actions = `<td class="num">${actionsCell(h)}</td>`;
   const yieldCell = `<td class="num yield-cell" title="Trailing 12-month dividend per share ÷ current price">${fmtPct(yieldFor(h))}</td>`;
+  const growthRow = growthForTicker(h.ticker);
+  const yoy = year !== 'all' && year !== null && !String(year).startsWith('fy:') ? dpsYoyFor(h, year) : null;
+  const cagr = growthRow && growthRow.dpsCagrPct !== null ? growthRow.dpsCagrPct : null;
+  const growthCells = year === 'all' ? '' :
+    `<td class="num" title="Year-on-year change in total dividend per share">${yoy === null ? '—' : (yoy >= 0 ? '+' : '') + yoy.toFixed(1) + '%'}</td>` +
+    `<td class="num" title="5-year dividend per share CAGR">${dpsSparkline(dpsTrendFor(h))}${cagr === null ? '—' : cagr.toFixed(1) + '%'}</td>`;
 
   if (year === 'all') {
     return `<tr data-ticker="${esc(h.ticker)}">${stockCell}` +
@@ -1275,7 +1344,7 @@ function rowFor(h, year) {
 
   return `<tr data-ticker="${esc(h.ticker)}">${stockCell}${qtyCells}` +
          `<td class="num income-cell">${fmtMoney(incomeFor(h, year))}</td>` +
-         `${totalDividendCell(h, year)}${yieldCell}${actions}</tr>`;
+         `${totalDividendCell(h, year)}${growthCells}${yieldCell}${actions}</tr>`;
 }
 
 function defaultSortDir(key) {
@@ -1309,6 +1378,15 @@ function sortHoldings(holdings, year) {
     if (key === 'totalDividend') return totalDividendFor(h, year);
     if (key === 'yield') {
       const value = yieldFor(h);
+      return (value === null || Number.isNaN(Number(value))) ? null : Number(value);
+    }
+    if (key === 'dpsYoy') {
+      const value = dpsYoyFor(h, year);
+      return (value === null || Number.isNaN(Number(value))) ? null : Number(value);
+    }
+    if (key === 'dpsCagr') {
+      const row = growthForTicker(h.ticker);
+      const value = row ? row.dpsCagrPct : null;
       return (value === null || Number.isNaN(Number(value))) ? null : Number(value);
     }
     if (key === 'q1' || key === 'q2' || key === 'q3' || key === 'q4') {
@@ -1350,6 +1428,8 @@ function renderTable() {
       sortHeader('Q4', 'q4', { num: true, title: 'Quantity held in October–December; edit to change this quarter\'s income' }) +
       sortHeader('Annual income', 'income', { num: true, title: 'Dividends received this year = Σ (dividend per share × quarter quantity)' }) +
       sortHeader('Total dividend', 'totalDividend', { num: true, title: 'Total dividend per share this year = Q1+Q2+Q3+Q4 — independent of quantity' }) +
+      sortHeader('DPS YoY', 'dpsYoy', { num: true, title: 'Change in total dividend per share vs the previous year' }) +
+      sortHeader('DPS CAGR', 'dpsCagr', { num: true, title: 'Compound growth of dividend per share (up to 5 years)' }) +
       sortHeader('Yield', 'yield', { num: true, title: 'Trailing 12-month dividend per share ÷ current price' }) +
       '<th></th>';
 
@@ -1358,7 +1438,7 @@ function renderTable() {
   el.tableWrap.hidden = empty;
   el.scrollHint.hidden = empty;
   if (empty) {
-    el.holdingsBody.innerHTML = `<tr><td colspan="${all ? 5 : 9}" class="empty-cell">No stocks yet — add NSE tickers above (e.g. RELIANCE, TCS, HDFCBANK).</td></tr>`;
+    el.holdingsBody.innerHTML = `<tr><td colspan="${all ? 5 : 11}" class="empty-cell">No stocks yet — add NSE tickers above (e.g. RELIANCE, TCS, HDFCBANK).</td></tr>`;
     return;
   }
   el.holdingsBody.innerHTML = sortHoldings(state.holdings, year).map(h => rowFor(h, year)).join('');
@@ -1477,6 +1557,15 @@ function renderAnalysis(data) {
       </div>`).join('')
     : '<div class="analysis-empty">No payouts recorded.</div>';
 
+  const bridgeRows = data.incomeBridge && data.incomeBridge.delta !== null && data.incomeBridge.delta !== undefined ? `
+    <div class="analysis-section">
+      <h3>Income bridge · ${esc(data.incomeBridge.previousYear)} → ${esc(data.incomeBridge.currentYear)}</h3>
+      <div class="meta">${fmtMoney(data.incomeBridge.previousIncome)} → ${fmtMoney(data.incomeBridge.currentIncome)}
+        (${data.incomeBridge.delta >= 0 ? '+' : ''}${fmtMoney(data.incomeBridge.delta)}${data.incomeBridge.deltaPct !== null ? `, ${data.incomeBridge.deltaPct >= 0 ? '+' : ''}${data.incomeBridge.deltaPct}%` : ''})</div>
+      <div class="bridge-pills" style="margin-top:8px">${(data.incomeBridge.components || []).map(c =>
+        `<span class="bridge-pill">${esc(c.label)}: ${c.amount >= 0 ? '+' : ''}${fmtMoney(c.amount)}</span>`).join('')}</div>
+    </div>` : '';
+
   const projectionRows = data.projections ? `
     <div class="analysis-section">
       <h3>Next year income scenarios · ${esc(yearLabel)}</h3>
@@ -1495,6 +1584,7 @@ function renderAnalysis(data) {
       <div class="analysis-card"><div class="label">Avg. yield (TTM)</div><div class="value green">${fmtPct(data.avgYieldPct)}</div></div>
       <div class="analysis-card"><div class="label">Holdings</div><div class="value">${data.holdingsCount}</div></div>
     </div>
+    ${bridgeRows}
     ${projectionRows}
     <div class="analysis-section"><h3>Income by year</h3>${yearRows}</div>
     <div class="analysis-section"><h3>Income by stock · ${esc(yearLabel)}</h3>${stockRows}</div>

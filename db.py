@@ -755,6 +755,123 @@ def _build_projections(holdings, year, total_income):
     }
 
 
+def _holding_income_for_year(holding, year):
+    total = 0.0
+    for dividend in holding.get("dividends") or []:
+        date = str(dividend.get("date") or "")
+        if len(date) < 4:
+            continue
+        try:
+            div_year = int(date[:4])
+        except ValueError:
+            continue
+        if div_year != year:
+            continue
+        key = quarter_key(date)
+        total += float(dividend.get("amount") or 0) * _qty_for_quarter(holding, key)
+    return round(total, 2)
+
+
+def _holding_income_at_prev_quarters(holding, year):
+    prev = year - 1
+    total = 0.0
+    for dividend in holding.get("dividends") or []:
+        date = str(dividend.get("date") or "")
+        if len(date) < 4:
+            continue
+        try:
+            div_year = int(date[:4])
+        except ValueError:
+            continue
+        if div_year != year:
+            continue
+        key = quarter_key(date)
+        quarter = int(key.split("-Q", 1)[1])
+        prev_key = f"{prev}-Q{quarter}"
+        total += float(dividend.get("amount") or 0) * _qty_for_quarter(holding, prev_key)
+    return round(total, 2)
+
+
+def _income_bridge(holdings, year):
+    if year is None:
+        return None
+    prev = year - 1
+    total_prev = 0.0
+    total_curr = 0.0
+    qty_effect = 0.0
+    dps_effect = 0.0
+    composition = 0.0
+
+    for holding in holdings:
+        inc_prev = _holding_income_for_year(holding, prev)
+        inc_curr = _holding_income_for_year(holding, year)
+        total_prev += inc_prev
+        total_curr += inc_curr
+
+        if inc_prev <= 0 and inc_curr <= 0:
+            continue
+        if inc_prev <= 0 < inc_curr:
+            composition += inc_curr
+            continue
+        if inc_prev > 0 >= inc_curr:
+            composition -= inc_prev
+            continue
+
+        at_prev_qty = _holding_income_at_prev_quarters(holding, year)
+        qty_effect += inc_curr - at_prev_qty
+        dps_effect += at_prev_qty - inc_prev
+
+    delta = round(total_curr - total_prev, 2)
+    return {
+        "previousYear": prev,
+        "currentYear": year,
+        "previousIncome": round(total_prev, 2),
+        "currentIncome": round(total_curr, 2),
+        "delta": delta,
+        "deltaPct": round(delta / total_prev * 100, 2) if total_prev > 0 else None,
+        "components": [
+            {"key": "quantity", "label": "Share quantities", "amount": round(qty_effect, 2)},
+            {"key": "dps", "label": "Dividend per share", "amount": round(dps_effect, 2)},
+            {"key": "composition", "label": "New or removed stocks", "amount": round(composition, 2)},
+        ],
+    }
+
+
+def _dps_yoy_pct(holding, year):
+    totals = holding.get("yearTotals") or {}
+    current = float(totals.get(str(year)) or 0)
+    previous = float(totals.get(str(year - 1)) or 0)
+    if previous <= 0 or current <= 0:
+        return None
+    return round((current - previous) / previous * 100, 2)
+
+
+def _dps_cagr_pct(holding, year):
+    series = _dps_series_until(holding, year)
+    if len(series) < 2:
+        return None
+    series = series[-5:]
+    cagr = _dps_cagr(series)
+    if cagr is None:
+        return None
+    return round(cagr * 100, 2)
+
+
+def _growth_by_ticker(holdings, year_value):
+    if year_value is None:
+        return None
+    out = {}
+    for holding in holdings:
+        ticker = holding["ticker"]
+        series = _dps_series_until(holding, year_value)[-5:]
+        out[ticker] = {
+            "dpsYoyPct": _dps_yoy_pct(holding, year_value),
+            "dpsCagrPct": _dps_cagr_pct(holding, year_value),
+            "dpsTrend": [{"year": y, "amount": amount} for y, amount in series],
+        }
+    return out
+
+
 def analysis(year="all"):
     try:
         year_value = None if str(year).lower() in ("all", "", "none") else int(year)
@@ -848,6 +965,8 @@ def analysis(year="all"):
         "projectedNextYearIncome": projected,
         "projectedIncreasePct": projected_increase,
         "projections": projections,
+        "incomeBridge": _income_bridge(holdings, year_value),
+        "growthByTicker": _growth_by_ticker(holdings, year_value),
         "totalPayouts": len(metas),
         "holdingsCount": len(holdings),
         "avgYieldPct": avg_yield,
