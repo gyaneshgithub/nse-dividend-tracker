@@ -2,7 +2,7 @@
 const LS_HOLDINGS = 'dividendTracker.holdings.v1';
 const LS_SYNCED = 'dividendTracker.synced.v1';
 
-let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, coachOpen: false, coachYear: null, coachData: null, sortKey: null, sortDir: 'asc', summaryProjections: null, summaryAnalysis: null };
+let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, coachOpen: false, coachYear: null, coachData: null, sortKey: null, sortDir: 'asc', summaryProjections: null, summaryAnalysis: null, importPlan: null, reconcileTicker: null, reconcileYear: null, reconcileComputed: null };
 let summaryProjectionToken = 0;
 let refreshing = false;
 const syncTimers = {};
@@ -70,8 +70,21 @@ const el = {
   importFile: document.getElementById('import-file'),
   importTemplateDownload: document.getElementById('import-template-download'),
   importTemplateLoad: document.getElementById('import-template-load'),
+  importMode: document.getElementById('import-mode'),
+  importPreview: document.getElementById('import-preview'),
   importMsg: document.getElementById('import-msg'),
   importResult: document.getElementById('import-result'),
+  reconcileModal: document.getElementById('reconcile-modal'),
+  reconcileClose: document.getElementById('reconcile-close'),
+  reconcileCancel: document.getElementById('reconcile-cancel'),
+  reconcileSave: document.getElementById('reconcile-save'),
+  reconcileMeta: document.getElementById('reconcile-meta'),
+  reconcileActual: document.getElementById('reconcile-actual'),
+  reconcileNote: document.getElementById('reconcile-note'),
+  analysisExport: document.getElementById('analysis-export'),
+  analysisTax: document.getElementById('analysis-tax'),
+  analysisCalendar: document.getElementById('analysis-calendar'),
+  analysisAgentPanel: document.getElementById('analysis-agent-panel'),
   refreshAllBtn: document.getElementById('refresh-all'),
   historyModal: document.getElementById('history-modal'),
   historyTitle: document.getElementById('history-title'),
@@ -644,6 +657,7 @@ function computeYearTotals(dividends) {
 function normalizeHolding(h) {
   h.quarters = h.quarters || {};
   h.quarterUpdatedAt = h.quarterUpdatedAt || {};
+  h.reconcile = h.reconcile || {};
   h.shares = Math.max(0, Number(h.shares) || 1);
   const divs = [...(h.dividends || [])].sort((a, b) => String(a.date).localeCompare(String(b.date)));
   // Do NOT invent quantities for missing quarters or new years. A
@@ -1123,6 +1137,8 @@ function openImport() {
   renderImportYears();
   el.importText.value = '';
   el.importFile.value = '';
+  state.importPlan = null;
+  if (el.importMode) el.importMode.value = 'add';
   el.importMsg.textContent = '';
   el.importResult.innerHTML = '';
   el.importModal.hidden = false;
@@ -1162,6 +1178,46 @@ async function refreshImportedHoldings(holdings) {
   await dbImportAll(holdings);
 }
 
+function renderImportPlan(plan) {
+  const lines = (plan.rows || []).map(row => {
+    const q = row.quarters ? Object.keys(row.quarters).join(', ') : '';
+    return `<div class="note">${esc(row.ticker)} · ${esc(row.action)}${row.reason ? ' — ' + esc(row.reason) : ''}${q ? ' · ' + esc(q) : ''}</div>`;
+  });
+  const tasks = (plan.tasks || []).map(t => `<div class="warn">${esc(t.message)}</div>`).join('');
+  el.importResult.innerHTML =
+    `<div class="ok">Plan: +${plan.counts.add} add, ${plan.counts.update} update, ` +
+    `${plan.counts.conflict} conflict, ${plan.counts.skip} skipped</div>${tasks}${lines.join('')}`;
+}
+
+async function previewImportPlan() {
+  const year = Number(el.importYear.value);
+  const mode = el.importMode ? el.importMode.value : 'add';
+  const { rows, errors } = parseImportRows(el.importText.value);
+  if (!rows.length) {
+    el.importMsg.textContent = 'Paste at least one valid row first.';
+    return;
+  }
+  el.importPreview.disabled = true;
+  try {
+    const res = await fetch('/api/import/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year, mode, rows: rows.map(r => ({ ticker: r.ticker, qtys: r.qtys })) }),
+    });
+    const plan = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(plan.error || ('HTTP ' + res.status));
+    state.importPlan = plan;
+    renderImportPlan(plan);
+    el.importMsg.textContent = plan.counts.conflict
+      ? 'Conflicts detected — review before Import.'
+      : 'Preview ready — Import applies this plan.';
+  } catch (e) {
+    el.importMsg.textContent = String(e.message || e);
+  } finally {
+    el.importPreview.disabled = false;
+  }
+}
+
 function renderImportResult(result) {
   const { year, added, skipped, invalid, corrected } = result;
   const parts = [];
@@ -1198,12 +1254,60 @@ function renderImportResult(result) {
 
 async function runImport() {
   const year = Number(el.importYear.value);
+  const mode = el.importMode ? el.importMode.value : 'add';
   const { rows, errors } = parseImportRows(el.importText.value);
   if (!rows.length) {
     el.importMsg.textContent = errors.length
       ? 'No valid rows found. Check the first column and the quantities.'
       : 'Paste at least one row first.';
     el.importResult.innerHTML = '';
+    return;
+  }
+
+  if (mode !== 'add') {
+    if (!state.importPlan || state.importPlan.year !== year || state.importPlan.mode !== mode) {
+      await previewImportPlan();
+    }
+    if (!state.importPlan) return;
+    if (state.importPlan.counts.conflict) {
+      el.importMsg.textContent = 'Conflicts in plan — review quantities before Import.';
+      return;
+    }
+    const actionable = state.importPlan.counts.add + state.importPlan.counts.update +
+      (state.importPlan.counts.conflict || 0);
+    if (!actionable) {
+      el.importMsg.textContent = 'Nothing to apply in this plan.';
+      return;
+    }
+    el.importRun.disabled = true;
+    el.importMsg.textContent = 'Applying import plan…';
+    try {
+      const res = await fetch('/api/import/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: state.importPlan }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
+      for (const h of json.holdings || []) {
+        const idx = findIndex(h.ticker);
+        const norm = normalizeHolding(h);
+        if (idx >= 0) state.holdings[idx] = norm;
+        else state.holdings.push(norm);
+        deletedTickers.delete(h.ticker);
+      }
+      persist();
+      const needsFetch = (json.holdings || []).filter(h => !h.dividends || !h.dividends.length);
+      if (needsFetch.length) await refreshImportedHoldings(needsFetch);
+      await fetchPortfolio();
+      el.importMsg.textContent = `Applied plan (${json.saved || 0} holding(s) saved).`;
+      state.importPlan = null;
+      refreshCoachBadge();
+    } catch (e) {
+      el.importMsg.textContent = String(e.message || e);
+    } finally {
+      el.importRun.disabled = false;
+    }
     return;
   }
 
@@ -2167,7 +2271,7 @@ function renderCoach(data) {
   const taskHtml = tasks.length
     ? `<ul class="coach-task-list">${tasks.map(task => `
       <li>
-        <button type="button" class="coach-task" data-coach-action="${esc(task.action || '')}" data-coach-ticker="${esc(task.ticker || '')}" data-coach-quarter="${esc(task.quarter || '')}">
+        <button type="button" class="coach-task" data-coach-action="${esc(task.action || '')}" data-coach-ticker="${esc(task.ticker || '')}" data-coach-quarter="${esc(task.quarter || '')}" data-coach-year="${esc(task.year != null ? task.year : '')}">
           <span class="coach-priority ${esc(task.priority || '')}">${esc(coachPriorityLabel(task.priority))}</span>
           ${esc(task.message)}
           ${task.ticker ? `<div class="meta">${esc(task.ticker)}${task.quarter ? ' · ' + esc(task.quarter) : ''}</div>` : ''}
@@ -2189,11 +2293,131 @@ function renderCoach(data) {
 
 function populateCoachYears() {
   const years = availableYears(true);
+  const fy = fyFilterOptions();
   const selected = state.coachYear === null ? 'all' : String(state.coachYear);
   el.coachYear.innerHTML =
     years.map(year => `<option value="${year}">${year}</option>`).join('') +
+    fy.map(row => `<option value="${esc(row.value)}">${esc(row.label)}</option>`).join('') +
     '<option value="all">All years</option>';
   el.coachYear.value = selected;
+}
+
+function currentFyStart() {
+  const d = new Date();
+  return d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+}
+
+function exportYearParam(year) {
+  if (year === null || year === 'all') return null;
+  if (isFyYear(year)) return String(year);
+  return String(year);
+}
+
+function runExport(year) {
+  const y = exportYearParam(year != null && year !== '' ? year : state.year);
+  if (!y) {
+    window.alert('Select a specific year (or FY) before exporting.');
+    return;
+  }
+  window.location.href = '/api/export?year=' + encodeURIComponent(y);
+}
+
+function downloadCalendarIcs() {
+  const year = state.analysisYear;
+  const qs = year && year !== 'all' && !isFyYear(year) ? '?year=' + encodeURIComponent(year) : '';
+  window.location.href = '/api/agent/calendar.ics' + qs;
+}
+
+async function loadTaxPack() {
+  if (!el.analysisAgentPanel) return;
+  const fy = isFyYear(state.analysisYear) ? state.analysisYear : `fy:${currentFyStart()}`;
+  el.analysisAgentPanel.hidden = false;
+  el.analysisAgentPanel.innerHTML = 'Loading FY tax pack…';
+  try {
+    const res = await fetch('/api/agent/tax?year=' + encodeURIComponent(fy));
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
+    const checks = (json.checklist || []).map(c =>
+      `<li>${c.done ? '✓' : '○'} ${esc(c.label)}</li>`
+    ).join('');
+    el.analysisAgentPanel.innerHTML =
+      `<strong>${esc(json.yearLabel || json.year)}</strong> · ` +
+      `Computed income ${fmtMoney(json.totalIncome)}` +
+      `<ul class="coach-events">${checks}</ul>` +
+      `<button type="button" class="secondary" id="tax-copy">Copy summary</button>` +
+      `<pre id="tax-copy-text">${esc(json.copyText || '')}</pre>`;
+    const copyBtn = document.getElementById('tax-copy');
+    if (copyBtn) copyBtn.addEventListener('click', () => copyText(json.copyText || ''));
+  } catch (e) {
+    el.analysisAgentPanel.innerHTML = '<div class="analysis-error">' + esc(e.message || e) + '</div>';
+  }
+}
+
+function closeReconcile() {
+  el.reconcileModal.hidden = true;
+  state.reconcileTicker = null;
+  state.reconcileYear = null;
+}
+
+function openReconcile(ticker, yearKey) {
+  const h = getHolding(ticker);
+  if (!h) {
+    window.alert('Holding not found: ' + ticker);
+    return;
+  }
+  const key = String(yearKey || (typeof state.year === 'number' ? state.year : ''));
+  if (!key) {
+    window.alert('Select a calendar year or FY first.');
+    return;
+  }
+  state.reconcileTicker = ticker;
+  state.reconcileYear = key;
+  let computed = null;
+  if (/^\d{4}$/.test(key)) {
+    computed = incomeFor(h, Number(key));
+  } else if (isFyYear(key)) {
+    const start = fyStartFrom(key);
+    computed = (h.dividends || []).reduce((sum, div) => {
+      if (!dateInFy(div.date, start)) return sum;
+      return sum + Number(div.amount || 0) * qtyForQuarter(h, quarterKey(div.date));
+    }, 0);
+    computed = Math.round(computed * 100) / 100;
+  }
+  state.reconcileComputed = computed;
+  const entry = (h.reconcile || {})[key] || {};
+  el.reconcileMeta.innerHTML =
+    `<strong>${esc(ticker)}</strong> · ${esc(key)}` +
+    (computed != null ? ` · computed ${fmtMoney(computed)}` : '');
+  el.reconcileActual.value = entry.actual != null ? entry.actual : '';
+  el.reconcileNote.value = entry.note || '';
+  el.reconcileModal.hidden = false;
+  el.reconcileActual.focus();
+  closeCoach();
+}
+
+async function saveReconcile() {
+  const ticker = state.reconcileTicker;
+  const key = state.reconcileYear;
+  if (!ticker || !key) return;
+  const h = getHolding(ticker);
+  if (!h) return;
+  const actual = el.reconcileActual.value === '' ? null : Number(el.reconcileActual.value);
+  if (actual !== null && (!Number.isFinite(actual) || actual < 0)) {
+    window.alert('Enter a valid amount.');
+    return;
+  }
+  h.reconcile = h.reconcile || {};
+  h.reconcile[key] = {
+    actual: actual === null ? null : Math.round(actual * 100) / 100,
+    note: el.reconcileNote.value.trim() || null,
+    updatedAt: new Date().toISOString(),
+  };
+  touch(h);
+  persist();
+  await dbSaveHoldingNow(h, true);
+  closeReconcile();
+  refreshCoachBadge();
+  if (state.coachOpen) loadCoach();
 }
 
 async function loadCoach() {
@@ -2234,6 +2458,7 @@ function runCoachAction(button) {
   const action = button.dataset.coachAction;
   const ticker = button.dataset.coachTicker;
   const quarter = button.dataset.coachQuarter;
+  const yearKey = button.dataset.coachYear;
   if (action === 'focus-quarter') focusCoachQuarter(ticker, quarter);
   else if (action === 'refresh' && ticker) {
     closeCoach();
@@ -2241,9 +2466,18 @@ function runCoachAction(button) {
   } else if (action === 'open-insight') {
     closeCoach();
     openInsight();
-  } else if (action === 'open-analysis') {
+  } else if (action === 'open-analysis' || action === 'open-export') {
     closeCoach();
     openAnalysis();
+  } else if (action === 'open-import') {
+    closeCoach();
+    openImport();
+  } else if (action === 'open-reconcile' && ticker) {
+    openReconcile(ticker, yearKey);
+  } else if (action === 'run-export') {
+    runExport(yearKey || state.coachYear || state.year);
+  } else if (action === 'download-calendar') {
+    downloadCalendarIcs();
   }
 }
 
@@ -2424,6 +2658,8 @@ el.importModal.addEventListener('click', e => { if (e.target === el.importModal)
 el.importRun.addEventListener('click', runImport);
 if (el.importTemplateDownload) el.importTemplateDownload.addEventListener('click', downloadImportTemplate);
 if (el.importTemplateLoad) el.importTemplateLoad.addEventListener('click', loadImportTemplateIntoEditor);
+if (el.importPreview) el.importPreview.addEventListener('click', previewImportPlan);
+if (el.importMode) el.importMode.addEventListener('change', () => { state.importPlan = null; });
 el.importFile.addEventListener('change', async () => {
   const file = el.importFile.files && el.importFile.files[0];
   if (!file) return;
@@ -2447,6 +2683,13 @@ el.analysisYear.addEventListener('change', () => {
   loadAnalysis();
 });
 el.analysisRefreshBtn.addEventListener('click', loadAnalysis);
+if (el.analysisExport) el.analysisExport.addEventListener('click', () => runExport(state.analysisYear));
+if (el.analysisTax) el.analysisTax.addEventListener('click', loadTaxPack);
+if (el.analysisCalendar) el.analysisCalendar.addEventListener('click', downloadCalendarIcs);
+if (el.reconcileClose) el.reconcileClose.addEventListener('click', closeReconcile);
+if (el.reconcileCancel) el.reconcileCancel.addEventListener('click', closeReconcile);
+if (el.reconcileSave) el.reconcileSave.addEventListener('click', saveReconcile);
+if (el.reconcileModal) el.reconcileModal.addEventListener('click', e => { if (e.target === el.reconcileModal) closeReconcile(); });
 el.analysisSearchBtn.addEventListener('click', () => runSearch());
 el.analysisSearchInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
@@ -2461,7 +2704,7 @@ el.coachClose.addEventListener('click', closeCoach);
 el.coachModal.addEventListener('click', e => { if (e.target === el.coachModal) closeCoach(); });
 el.coachYear.addEventListener('change', () => {
   const value = el.coachYear.value;
-  state.coachYear = value === 'all' ? 'all' : Number(value);
+  state.coachYear = value === 'all' ? 'all' : (value.startsWith('fy:') ? value : Number(value));
   loadCoach();
 });
 el.coachReload.addEventListener('click', loadCoach);
@@ -2488,6 +2731,7 @@ el.insightReload.addEventListener('click', loadInsight);
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (state.historyTicker) closeHistory();
+  else if (!el.reconcileModal.hidden) closeReconcile();
   else if (!el.importModal.hidden) closeImport();
   else if (state.coachOpen) closeCoach();
   else if (state.insightOpen) closeInsight();

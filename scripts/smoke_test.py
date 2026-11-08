@@ -150,6 +150,21 @@ def main() -> int:
                 "coach briefing responds",
             )
 
+            status, body = request(port, "GET", "/api/export?year=2026")
+            check(status == 200 and "SMOKE" in body, "export CSV responds")
+
+            status, body = request(
+                port,
+                "POST",
+                "/api/import/preview",
+                {"year": 2026, "mode": "update", "rows": [{"ticker": "SMOKE", "qtys": [10, 10, 10, 10]}]},
+            )
+            preview = json.loads(body)
+            check(status == 200 and preview.get("counts", {}).get("update") == 1, "import preview responds")
+
+            status, body = request(port, "GET", "/api/agent/tax?year=fy:2026")
+            check(status == 200 and "copyText" in json.loads(body), "tax playbook responds")
+
             status, body = request(port, "DELETE", "/api/portfolio/SMOKE")
             check(status == 200, "delete holding")
 

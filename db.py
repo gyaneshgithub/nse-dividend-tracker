@@ -186,6 +186,36 @@ def _year_totals(dividends):
     return dict(sorted(totals.items()))
 
 
+RECONCILE_KEY_RE = re.compile(r"^(?:fy:\d{4}|\d{4})$")
+
+
+def _normalize_reconcile(raw):
+    if not isinstance(raw, dict):
+        return {}
+    out = {}
+    for key, entry in raw.items():
+        k = str(key).strip()
+        if not RECONCILE_KEY_RE.fullmatch(k):
+            continue
+        if not isinstance(entry, dict):
+            continue
+        actual = entry.get("actual")
+        try:
+            actual = round(float(actual), 2) if actual is not None and actual != "" else None
+        except (TypeError, ValueError):
+            actual = None
+        note = str(entry.get("note") or "").strip()[:200] or None
+        updated_at = str(entry.get("updatedAt") or "")[:40] or None
+        dismissed = str(entry.get("dismissedUntil") or "")[:40] or None
+        out[k] = {
+            "actual": actual,
+            "note": note,
+            "updatedAt": updated_at,
+            "dismissedUntil": dismissed,
+        }
+    return out
+
+
 def _normalize_quarter_times(raw):
     """Timestamps for quantities that were changed by hand.
 
@@ -231,6 +261,7 @@ def normalize_holding(raw):
         "lastError": str(raw.get("lastError") or "")[:500] or None,
         "lastFetched": str(raw.get("lastFetched") or "")[:40] or None,
         "priceHistory": _normalize_price_history(raw.get("priceHistory")),
+        "reconcile": _normalize_reconcile(raw.get("reconcile")),
         "updatedAt": str(raw.get("updatedAt") or "")[:40]
         or datetime.now(timezone.utc).isoformat(),
     }
@@ -311,6 +342,18 @@ def _merge_holding(existing, incoming):
     elif not existing["dividends"] and incoming["dividends"]:
         merged["dividends"] = incoming["dividends"]
     merged["yearTotals"] = _year_totals(merged["dividends"])
+
+    reconcile = {}
+    keys = set(existing.get("reconcile") or {}) | set(incoming.get("reconcile") or {})
+    for rk in keys:
+        ex = (existing.get("reconcile") or {}).get(rk) or {}
+        inc = (incoming.get("reconcile") or {}).get(rk) or {}
+        ex_t = _parse_time(ex.get("updatedAt"))
+        inc_t = _parse_time(inc.get("updatedAt"))
+        picked = inc if inc_t >= ex_t else ex
+        if picked:
+            reconcile[rk] = picked
+    merged["reconcile"] = reconcile
 
     longer = existing.get("priceHistory") or []
     if len((incoming.get("priceHistory") or [])) > len(longer):
@@ -514,6 +557,10 @@ def _holding_metadata(h):
             h.get("priceHistory") or [],
             separators=(",", ":"),
         ),
+        "reconcile_json": json.dumps(
+            h.get("reconcile") or {},
+            separators=(",", ":"),
+        ),
     }
 
 
@@ -684,6 +731,7 @@ def _holding_from_metadata(meta):
         "lastError": meta.get("last_error") or None,
         "lastFetched": meta.get("last_fetched") or None,
         "priceHistory": _normalize_price_history(json.loads(meta.get("price_history_json") or "[]")),
+        "reconcile": _normalize_reconcile(json.loads(meta.get("reconcile_json") or "{}")),
         "updatedAt": meta.get("updated_at") or None,
     }
 
@@ -832,21 +880,35 @@ def _build_projections(holdings, year, total_income):
     }
 
 
-def _holding_income_for_year(holding, year):
+def holding_income_for_period(holding, period):
+    """Public helper: income for one holding under a calendar year or FY period."""
     total = 0.0
     for dividend in holding.get("dividends") or []:
         date = str(dividend.get("date") or "")
         if len(date) < 4:
             continue
-        try:
-            div_year = int(date[:4])
-        except ValueError:
-            continue
-        if div_year != year:
+        if period["mode"] == "calendar":
+            try:
+                div_year = int(date[:4])
+            except ValueError:
+                continue
+            if div_year != period["calendarYear"]:
+                continue
+        elif period["mode"] == "fy":
+            if not _date_in_fy(date, period["fyStart"]):
+                continue
+        elif period["mode"] == "all":
+            pass
+        else:
             continue
         key = quarter_key(date)
         total += float(dividend.get("amount") or 0) * _qty_for_quarter(holding, key)
     return round(total, 2)
+
+
+def _holding_income_for_year(holding, year):
+    period = {"mode": "calendar", "calendarYear": year, "fyStart": None, "label": str(year)}
+    return holding_income_for_period(holding, period)
 
 
 def _holding_income_at_prev_quarters(holding, year):

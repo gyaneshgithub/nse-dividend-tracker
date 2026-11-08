@@ -143,6 +143,13 @@
           <label>Year
             <select id="import-year" title="Quarter quantities will be saved under this year"></select>
           </label>
+          <label>Import mode
+            <select id="import-mode" title="Add new tickers only, or merge quantities for stocks already in the tracker">
+              <option value="add">Add new only</option>
+              <option value="upsert">Add + update existing</option>
+              <option value="update">Update existing only</option>
+            </select>
+          </label>
           <label class="import-file-label">CSV file
             <input type="file" id="import-file" accept=".csv,text/csv,text/plain" title="Choose a CSV file with SHARE NAME, Q1, Q2, Q3, Q4">
           </label>
@@ -153,6 +160,7 @@
         <div class="import-hint">Download <strong>Template CSV</strong> or fill the sheet, then paste or upload. Tabs, commas, or spaces are accepted. Rows whose stock is already in the tracker are skipped. Blank quantity cells stay blank.</div>
         <div id="import-msg" aria-live="polite"></div>
         <div class="import-actions">
+          <button type="button" id="import-preview" class="secondary" title="Dry-run: see adds, updates, and conflicts before writing">Preview plan</button>
           <button id="import-run" title="Add new stocks and save their quarterly quantities">Import</button>
           <button id="import-cancel" class="secondary" title="Close without importing">Cancel</button>
         </div>
@@ -176,7 +184,11 @@
             <select id="analysis-year" title="Choose the year to analyze"></select>
           </label>
           <button id="analysis-refresh" title="Recompute the analysis from local ChromaDB">↻ Recompute</button>
+          <button type="button" class="secondary" id="analysis-export" title="Download CSV export for the selected year (blocked while reconcile gaps exist)">⬇ Export CSV</button>
+          <button type="button" class="secondary" id="analysis-tax" title="FY tax prep checklist and copyable summary">🧾 FY tax pack</button>
+          <button type="button" class="secondary" id="analysis-calendar" title="Download expected payout windows as calendar file">📅 Calendar .ics</button>
         </div>
+        <div id="analysis-agent-panel" class="analysis-agent" hidden aria-live="polite"></div>
         <div id="analysis-body"></div>
         <div class="analysis-search">
           <h3>Search dividend records</h3>
@@ -191,6 +203,31 @@
             <button class="chip" data-query="Q2 payouts" title="Search for second-quarter payouts">Q2 payouts</button>
           </div>
           <div id="analysis-search-results"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="reconcile-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="reconcile-title">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title" id="reconcile-title">⚖️ Reconcile actual income</div>
+          <div class="modal-sub" id="reconcile-sub">Compare broker/bank receipts with computed dividends</div>
+        </div>
+        <button class="icon-btn modal-close" id="reconcile-close" title="Close" aria-label="Close reconcile">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="reconcile-meta" class="import-hint"></div>
+        <label>Actual received (₹)
+          <input type="number" id="reconcile-actual" min="0" step="0.01" class="reconcile-input" title="Total dividend cash you received for this period">
+        </label>
+        <label>Note (optional)
+          <input type="text" id="reconcile-note" maxlength="200" class="reconcile-input" placeholder="e.g. Broker statement Apr–Mar">
+        </label>
+        <div class="import-actions">
+          <button type="button" id="reconcile-save">Save</button>
+          <button type="button" class="secondary" id="reconcile-cancel">Cancel</button>
         </div>
       </div>
     </div>

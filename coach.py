@@ -11,24 +11,48 @@ from __future__ import annotations
 import os
 from datetime import datetime, timedelta, timezone
 
+import agent
 import db
 import insight
 from insight import DISCLAIMER, _holding_insight
 
 RULESET = "v1"
-RULESET_VERSION = 2
+RULESET_VERSION = 3
 STALE_FETCH_DAYS = int(os.environ.get("COACH_STALE_FETCH_DAYS", "7") or "7")
 SCENARIO_SPREAD_PCT = 15.0
 MAX_EVENTS = 30
 
 
 def _parse_year(year):
+    text = str(year or "all").strip().lower()
+    if text in ("all", "", "none"):
+        return None, "all recorded years"
+    if text.startswith("fy:"):
+        try:
+            start = int(text.split(":", 1)[1])
+        except (TypeError, ValueError):
+            return None, "all recorded years"
+        return text, f"FY {start}-{str(start + 1)[-2:]}"
     try:
-        year_value = None if str(year).lower() in ("all", "", "none") else int(year)
+        y = int(text)
+        return y, str(y)
     except (TypeError, ValueError):
-        year_value = None
-    year_label = "all recorded years" if year_value is None else str(year_value)
-    return year_value, year_label
+        return None, "all recorded years"
+
+
+def _dividend_in_coach_year(date: str, year_value) -> bool:
+    if year_value is None:
+        return True
+    if str(year_value).startswith("fy:"):
+        try:
+            start = int(str(year_value).split(":", 1)[1])
+        except (TypeError, ValueError):
+            return True
+        return db._date_in_fy(date, start)
+    try:
+        return int(date[:4]) == int(year_value)
+    except (TypeError, ValueError):
+        return True
 
 
 def _parse_time(value):
@@ -103,7 +127,7 @@ def _missing_quantity_tasks(holdings, year_value):
                 div_year = int(date[:4])
             except ValueError:
                 continue
-            if year_value is not None and div_year != year_value:
+            if year_value is not None and not _dividend_in_coach_year(date, year_value):
                 continue
             key = db.quarter_key(date)
             if db._qty_for_quarter(holding, key) > 0:
@@ -175,7 +199,8 @@ def _cut_tasks(holdings, year_value, share):
     tasks = []
     for holding in holdings:
         ticker = holding.get("ticker") or "?"
-        row = _holding_insight(holding, share.get(ticker, 0), year_value)
+        insight_year = year_value if isinstance(year_value, int) else None
+        row = _holding_insight(holding, share.get(ticker, 0), insight_year)
         for cut in row.get("cuts") or []:
             tasks.append(
                 {
@@ -248,11 +273,7 @@ def _build_events(holdings, year_value):
             date = str(div.get("date") or "")
             if len(date) < 7:
                 continue
-            try:
-                div_year = int(date[:4])
-            except ValueError:
-                continue
-            if year_value is not None and div_year != year_value:
+            if year_value is not None and not _dividend_in_coach_year(date, year_value):
                 continue
             months.append(int(date[5:7]))
             if len(events) < MAX_EVENTS:
@@ -308,9 +329,17 @@ def build(year="all"):
     tasks.extend(_cut_tasks(holdings, year_value, share))
     tasks.extend(_concentration_tasks(stats))
     tasks.extend(_scenario_spread_task(result.get("projections")))
+    tasks.extend(agent.reconcile_tasks(holdings, year_value))
+    tasks.extend(agent.calendar_block_tasks(holdings, year_value if isinstance(year_value, int) else None))
+    tasks = _sort_tasks(tasks)
+    tasks.extend(agent.export_readiness_tasks(holdings, year_value, tasks))
+    if isinstance(year_value, str) and str(year_value).startswith("fy:"):
+        tasks.extend(agent.tax_playbook(year_value).get("tasks") or [])
     tasks = _sort_tasks(tasks)
 
     events = _build_events(holdings, year_value)
+    cal_year = year_value if isinstance(year_value, int) else None
+    events.extend(agent.upcoming_calendar_events(holdings, cal_year))
     counts = _task_counts(tasks)
 
     return {
