@@ -1419,7 +1419,7 @@ function sortHoldings(holdings, year) {
   const key = state.sortKey;
   if (!key) return holdings;
   // Quarter columns do not exist in the "all years" view.
-  if (year === 'all' && (key === 'q1' || key === 'q2' || key === 'q3' || key === 'q4')) {
+  if ((year === 'all' || isFyYear(year)) && (key === 'q1' || key === 'q2' || key === 'q3' || key === 'q4')) {
     return holdings;
   }
   const dir = state.sortDir === 'desc' ? -1 : 1;
