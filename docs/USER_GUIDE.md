@@ -44,6 +44,14 @@ The **Year** selector controls the table and the income cards. Choose
 **All years** to see total income and total dividend per share across all
 recorded history. Quarter columns are hidden in the all-years view.
 
+**FY 2025-26** (and similar options) use India's April–March financial year:
+income and Analysis totals follow **payout dates** in that window, not calendar
+year totals. Quarterly quantity cells are hidden in FY view; use a calendar year
+to edit quantities.
+
+**Analysis** includes a **Monthly cashflow** section (payment month × income)
+for the selected calendar year or FY.
+
 A new calendar year appears automatically on 1 January. It starts with blank
 quantities; earlier years are never changed.
 

@@ -872,16 +872,76 @@ def _growth_by_ticker(holdings, year_value):
     return out
 
 
-def analysis(year="all"):
+def _parse_analysis_period(year):
+    text = str(year or "all").strip()
+    lower = text.lower()
+    if lower in ("all", "", "none"):
+        return {"mode": "all", "label": "all", "calendarYear": None, "fyStart": None}
+    if lower.startswith("fy:"):
+        try:
+            start = int(text.split(":", 1)[1])
+        except (TypeError, ValueError):
+            return {"mode": "all", "label": "all", "calendarYear": None, "fyStart": None}
+        end = start + 1
+        return {
+            "mode": "fy",
+            "label": f"{start}-{str(end)[-2:]}",
+            "calendarYear": None,
+            "fyStart": start,
+        }
     try:
-        year_value = None if str(year).lower() in ("all", "", "none") else int(year)
+        calendar = int(text)
+        return {"mode": "calendar", "label": str(calendar), "calendarYear": calendar, "fyStart": None}
     except (TypeError, ValueError):
-        year_value = None
+        return {"mode": "all", "label": "all", "calendarYear": None, "fyStart": None}
+
+
+def _date_in_fy(date, fy_start):
+    if len(date) < 7:
+        return False
+    month = int(date[5:7])
+    year = int(date[:4])
+    if month >= 4:
+        return year == fy_start
+    return year == fy_start + 1
+
+
+def _filter_metas(all_metas, period):
+    if period["mode"] == "all":
+        return all_metas
+    if period["mode"] == "calendar":
+        year = period["calendarYear"]
+        return [m for m in all_metas if int(m.get("year") or 0) == year]
+    start = period["fyStart"]
+    return [m for m in all_metas if _date_in_fy(str(m.get("date") or ""), start)]
+
+
+def _cashflow_by_month(metas):
+    income = {}
+    payouts = {}
+    for meta in metas:
+        date = str(meta.get("date") or "")
+        if len(date) < 7:
+            continue
+        month = date[:7]
+        income[month] = income.get(month, 0.0) + float(meta.get("income") or 0)
+        payouts[month] = payouts.get(month, 0) + 1
+    return [
+        {
+            "month": month,
+            "income": round(income[month], 2),
+            "payouts": payouts[month],
+        }
+        for month in sorted(income.keys())
+    ]
+
+
+def analysis(year="all"):
+    period = _parse_analysis_period(year)
+    calendar_year = period["calendarYear"]
 
     all_metas = _payout_metadatas()
-    metas = all_metas
-    if year_value is not None:
-        metas = [m for m in all_metas if int(m.get("year") or 0) == year_value]
+    metas = _filter_metas(all_metas, period)
 
     total_income = round(sum(float(m.get("income") or 0) for m in metas), 2)
 
@@ -953,20 +1013,31 @@ def analysis(year="all"):
     yields = [r["yieldPct"] for r in by_stock if r["yieldPct"] is not None]
     avg_yield = round(sum(yields) / len(yields), 2) if yields else None
 
-    projections = _build_projections(holdings, year_value, total_income)
+    projections = (
+        _build_projections(holdings, calendar_year, total_income)
+        if period["mode"] == "calendar"
+        else None
+    )
     projected = None if projections is None else projections["base"]["income"]
     projected_increase = None if projections is None else projections["base"]["increasePct"]
 
+    response_year = "all" if period["mode"] == "all" else (
+        calendar_year if period["mode"] == "calendar" else period["label"]
+    )
+
     return {
-        "year": "all" if year_value is None else year_value,
+        "year": response_year,
+        "period": period["mode"],
+        "fyStart": period["fyStart"],
         "currency": "INR",
         "backend": "chromadb",
         "totalIncome": total_income,
         "projectedNextYearIncome": projected,
         "projectedIncreasePct": projected_increase,
         "projections": projections,
-        "incomeBridge": _income_bridge(holdings, year_value),
-        "growthByTicker": _growth_by_ticker(holdings, year_value),
+        "incomeBridge": _income_bridge(holdings, calendar_year),
+        "growthByTicker": _growth_by_ticker(holdings, calendar_year),
+        "cashflowByMonth": _cashflow_by_month(metas),
         "totalPayouts": len(metas),
         "holdingsCount": len(holdings),
         "avgYieldPct": avg_yield,

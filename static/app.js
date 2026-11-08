@@ -651,6 +651,41 @@ function normalizeHolding(h) {
   return h;
 }
 
+function isFyYear(year) {
+  return String(year).startsWith('fy:');
+}
+
+function fyStartFrom(year) {
+  return parseInt(String(year).split(':')[1], 10);
+}
+
+function dateInFy(date, start) {
+  const y = parseInt(String(date).slice(0, 4), 10);
+  const m = parseInt(String(date).slice(5, 7), 10);
+  if (m >= 4) return y === start;
+  return y === start + 1;
+}
+
+function fyLabel(start) {
+  const end = start + 1;
+  return `FY ${start}-${String(end).slice(-2)}`;
+}
+
+function fyFilterOptions() {
+  const years = availableYears(true);
+  const anchor = years.length ? Math.max(...years) : new Date().getFullYear();
+  const out = [];
+  for (let start = anchor; start >= anchor - 6; start--) {
+    out.push({ value: `fy:${start}`, label: fyLabel(start) });
+  }
+  return out;
+}
+
+function analysisYearParam(year) {
+  if (year === null || year === undefined) return 'all';
+  return encodeURIComponent(String(year));
+}
+
 function availableYears(includeCurrent) {
   const set = new Set();
   state.holdings.forEach(h => (h.dividends || []).forEach(d => {
@@ -680,8 +715,12 @@ function qtyForQuarter(h, key) {
 
 function incomeFor(h, year) {
   return (h.dividends || []).reduce((sum, d) => {
-    const y = Number(String(d.date).slice(0, 4));
-    if (year !== 'all' && y !== year) return sum;
+    if (isFyYear(year)) {
+      if (!dateInFy(d.date, fyStartFrom(year))) return sum;
+    } else {
+      const y = Number(String(d.date).slice(0, 4));
+      if (year !== 'all' && y !== year) return sum;
+    }
     return sum + (Number(d.amount) || 0) * qtyForQuarter(h, quarterKey(d.date));
   }, 0);
 }
@@ -692,6 +731,13 @@ function incomeFor(h, year) {
 function totalDividendFor(h, year) {
   if (year === 'all') {
     return (h.dividends || []).reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+  }
+  if (isFyYear(year)) {
+    const start = fyStartFrom(year);
+    return (h.dividends || []).reduce((sum, d) => {
+      if (!dateInFy(d.date, start)) return sum;
+      return sum + (Number(d.amount) || 0);
+    }, 0);
   }
   const key = String(year);
   if (h.yearTotals && h.yearTotals[key] !== undefined) return Number(h.yearTotals[key]) || 0;
@@ -804,7 +850,7 @@ async function loadSummaryProjections() {
   }
   const token = ++summaryProjectionToken;
   try {
-    const res = await fetch('/api/analysis?year=' + encodeURIComponent(year));
+    const res = await fetch('/api/analysis?year=' + analysisYearParam(year));
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
     if (token !== summaryProjectionToken) return;
@@ -1227,7 +1273,7 @@ function renderYearFilter() {
   const dividendYears = availableYears(false);
   const currentYear = new Date().getFullYear();
   let value = state.year;
-  if (value === null || (value !== 'all' && !years.includes(value))) {
+  if (value === null || (value !== 'all' && !isFyYear(value) && !years.includes(value))) {
     // Open on the current calendar year. This is what makes the filter
     // move to 2027 automatically on 1 January 2027. If the current year
     // is not in the list for some reason, fall back to the latest year
@@ -1237,16 +1283,18 @@ function renderYearFilter() {
       : (dividendYears.length ? dividendYears[0] : 'all');
     state.year = value;
   }
+  const fyOpts = fyFilterOptions();
   el.yearFilter.innerHTML = '<option value="all">All years</option>' +
-    years.map(y => `<option value="${y}"${String(y) === String(value) ? ' selected' : ''}>${y}</option>`).join('');
+    years.map(y => `<option value="${y}"${String(y) === String(value) ? ' selected' : ''}>${y}</option>`).join('') +
+    fyOpts.map(f => `<option value="${f.value}"${String(f.value) === String(value) ? ' selected' : ''}>${f.label}</option>`).join('');
   el.yearFilter.value = String(value);
-  el.clearYearBtn.disabled = value === 'all';
+  el.clearYearBtn.disabled = value === 'all' || isFyYear(value);
   renderYearNote();
 }
 
 function renderYearNote() {
   const year = state.year;
-  if (year === 'all') { el.yearNote.textContent = ''; return; }
+  if (year === 'all' || isFyYear(year)) { el.yearNote.textContent = isFyYear(year) ? `${fyLabel(fyStartFrom(year))} uses April–March payout dates.` : ''; return; }
   const hasDividend = state.holdings.some(h => (h.dividends || []).some(d => Number(String(d.date).slice(0, 4)) === year));
   const hasQuantity = state.holdings.some(h => Object.keys(h.quarters || {}).some(k => k.startsWith(year + '-') && Number(h.quarters[k]) > 0));
   el.yearNote.textContent = (!hasDividend && !hasQuantity)
@@ -1257,11 +1305,13 @@ function renderYearNote() {
 function renderSummary() {
   const year = state.year;
   el.sumCount.textContent = state.holdings.length;
-  el.sumIncomeLabel.textContent = year === 'all' ? 'Total income (all years)' : 'Annual income ' + year;
+  el.sumIncomeLabel.textContent = year === 'all'
+    ? 'Total income (all years)'
+    : (isFyYear(year) ? fyLabel(fyStartFrom(year)) + ' income' : 'Annual income ' + year);
   const total = state.holdings.reduce((s, h) => s + incomeFor(h, year), 0);
   el.sumIncome.textContent = state.holdings.length ? fmtMoney(total) : '—';
 
-  const projected = year === 'all'
+  const projected = (year === 'all' || isFyYear(year))
     ? null
     : state.holdings.reduce((s, h) => s + projectedIncomeFor(h, year), 0);
   el.projectionCard.title = year === 'all'
@@ -1286,7 +1336,7 @@ function renderSummary() {
   renderProjectionScenarios();
 
   el.sumMonthlyLabel.textContent = year === 'all' ? 'Monthly income' : 'Monthly income ' + year;
-  el.sumMonthly.textContent = state.holdings.length && year !== 'all' ? fmtMoney(total / 12) : '—';
+  el.sumMonthly.textContent = state.holdings.length && year !== 'all' && !isFyYear(year) ? fmtMoney(total / 12) : '—';
   const yields = state.holdings.map(yieldFor).filter(y => y !== null);
   el.sumYield.textContent = yields.length ? (yields.reduce((a, b) => a + b, 0) / yields.length).toFixed(2) + '%' : '—';
 }
@@ -1317,14 +1367,14 @@ function rowFor(h, year) {
   const growthRow = growthForTicker(h.ticker);
   const yoy = year !== 'all' && year !== null && !String(year).startsWith('fy:') ? dpsYoyFor(h, year) : null;
   const cagr = growthRow && growthRow.dpsCagrPct !== null ? growthRow.dpsCagrPct : null;
-  const growthCells = year === 'all' ? '' :
+  const growthCells = (year === 'all' || fyView) ? '' :
     `<td class="num" title="Year-on-year change in total dividend per share">${yoy === null ? '—' : (yoy >= 0 ? '+' : '') + yoy.toFixed(1) + '%'}</td>` +
     `<td class="num" title="5-year dividend per share CAGR">${dpsSparkline(dpsTrendFor(h))}${cagr === null ? '—' : cagr.toFixed(1) + '%'}</td>`;
 
-  if (year === 'all') {
+  if (year === 'all' || isFyYear(year)) {
     return `<tr data-ticker="${esc(h.ticker)}">${stockCell}` +
-           `<td class="num income-cell">${fmtMoney(incomeFor(h, 'all'))}</td>` +
-           `${totalDividendCell(h, 'all')}${yieldCell}${actions}</tr>`;
+           `<td class="num income-cell">${fmtMoney(incomeFor(h, year))}</td>` +
+           `${totalDividendCell(h, year)}${yieldCell}${actions}</tr>`;
   }
 
   const qtyCells = [1, 2, 3, 4].map(q => {
@@ -1414,11 +1464,12 @@ function sortHoldings(holdings, year) {
 
 function renderTable() {
   const year = state.year;
-  const all = year === 'all';
+  const fyView = isFyYear(year);
+  const all = year === 'all' || fyView;
   el.tableHead.innerHTML = all
     ? sortHeader('Stock', 'stock', { title: 'Stock symbol and company name' }) +
-      sortHeader('Total income', 'income', { num: true, title: 'Total dividends received across all years' }) +
-      sortHeader('Total dividend', 'totalDividend', { num: true, title: 'Total dividend per share across all recorded years = Q1+Q2+Q3+Q4 for each year' }) +
+      sortHeader(fyView ? 'FY income' : 'Total income', 'income', { num: true, title: fyView ? 'Dividends received in the selected financial year' : 'Total dividends received across all years' }) +
+      sortHeader('Total dividend', 'totalDividend', { num: true, title: fyView ? 'Total dividend per share paid in this financial year' : 'Total dividend per share across all recorded years = Q1+Q2+Q3+Q4 for each year' }) +
       sortHeader('Yield', 'yield', { num: true, title: 'Trailing 12-month dividend per share ÷ current price' }) +
       '<th></th>'
     : sortHeader('Stock', 'stock', { title: 'Stock symbol and company name' }) +
@@ -1557,6 +1608,14 @@ function renderAnalysis(data) {
       </div>`).join('')
     : '<div class="analysis-empty">No payouts recorded.</div>';
 
+  const cashRows = (data.cashflowByMonth || []).length ? `
+    <div class="analysis-section">
+      <h3>Monthly cashflow · ${esc(yearLabel)}</h3>
+      ${data.cashflowByMonth.map(row => analysisBar(row.month, row.income,
+        Math.max(...data.cashflowByMonth.map(r => r.income), 0.0001),
+        fmtMoney(row.income), `${row.payouts} payout${row.payouts === 1 ? '' : 's'}`)).join('')}
+    </div>` : '';
+
   const bridgeRows = data.incomeBridge && data.incomeBridge.delta !== null && data.incomeBridge.delta !== undefined ? `
     <div class="analysis-section">
       <h3>Income bridge · ${esc(data.incomeBridge.previousYear)} → ${esc(data.incomeBridge.currentYear)}</h3>
@@ -1584,6 +1643,7 @@ function renderAnalysis(data) {
       <div class="analysis-card"><div class="label">Avg. yield (TTM)</div><div class="value green">${fmtPct(data.avgYieldPct)}</div></div>
       <div class="analysis-card"><div class="label">Holdings</div><div class="value">${data.holdingsCount}</div></div>
     </div>
+    ${cashRows}
     ${bridgeRows}
     ${projectionRows}
     <div class="analysis-section"><h3>Income by year</h3>${yearRows}</div>
@@ -1597,7 +1657,7 @@ async function loadAnalysis() {
   el.analysisBody.innerHTML = '<div class="analysis-empty">Loading analysis from ChromaDB…</div>';
   try {
     const year = state.analysisYear === null ? 'all' : state.analysisYear;
-    const res = await fetch('/api/analysis?year=' + encodeURIComponent(year));
+    const res = await fetch('/api/analysis?year=' + analysisYearParam(year));
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
     renderAnalysis(json);
@@ -2221,7 +2281,7 @@ function render() {
 // ---------- events ----------
 el.yearFilter.addEventListener('change', () => {
   const v = el.yearFilter.value;
-  state.year = v === 'all' ? 'all' : Number(v);
+  state.year = v === 'all' ? 'all' : (v.startsWith('fy:') ? v : Number(v));
   render();
 });
 

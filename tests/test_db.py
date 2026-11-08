@@ -170,6 +170,41 @@ def test_income_bridge_decomposes_yoy_change(db):
     assert by_key["dps"] == 0.0
 
 
+def test_analysis_fy_filters_apr_to_mar(db):
+    db.save_holding(
+        holding(
+            quarters={"2025-Q2": 10, "2026-Q1": 5},
+            dividends=[
+                {"date": "2025-05-01", "amount": 2.0},
+                {"date": "2026-02-01", "amount": 1.0},
+                {"date": "2024-08-01", "amount": 9.0},
+            ],
+        )
+    )
+    result = db.analysis("fy:2025")
+    assert result["period"] == "fy"
+    assert result["year"] == "2025-26"
+    assert result["totalIncome"] == 25.0
+    assert result["projections"] is None
+
+
+def test_cashflow_by_month(db):
+    db.save_holding(
+        holding(
+            quarters={"2026-Q1": 10, "2026-Q2": 10},
+            dividends=[
+                {"date": "2026-02-01", "amount": 2.0},
+                {"date": "2026-05-01", "amount": 1.5},
+            ],
+        )
+    )
+    rows = db.analysis("2026")["cashflowByMonth"]
+    assert len(rows) == 2
+    assert rows[0]["month"] == "2026-02"
+    assert rows[0]["income"] == 20.0
+    assert rows[1]["income"] == 15.0
+
+
 def test_growth_by_ticker(db):
     db.save_holding(
         holding(

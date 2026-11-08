@@ -226,6 +226,11 @@ For a specific calendar year, `incomeBridge` explains the move from the
 previous year (`quantity`, `dps`, `composition`), and `growthByTicker` carries
 `dpsYoyPct`, `dpsCagrPct` and a short `dpsTrend` series for the UI.
 
+`GET /api/analysis?year=fy:2025` filters payouts from 1 April 2025 through
+31 March 2026. Calendar-only features (bridge, growth columns, projections) are
+omitted for FY requests. Every scoped analysis includes `cashflowByMonth`
+(payment month × income).
+
 ## Insight
 
 `GET /api/insight?year=YYYY|all` builds a descriptive score of dividend health

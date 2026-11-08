@@ -6,6 +6,9 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Monthly cashflow and India FY view.** Analysis returns `cashflowByMonth`; the
+  year filter adds financial years (April–March). FY mode totals income by
+  payout date and shows a monthly cashflow section in Analysis.
 - **Income bridge and DPS growth columns.** Calendar-year analysis includes a
   year-on-year income decomposition (`quantity`, `dps`, `composition`) plus
   per-ticker DPS YoY and CAGR with sparklines on the dashboard table.
