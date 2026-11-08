@@ -547,6 +547,7 @@ def build(year="all"):
         "avgYieldPct": result.get("avgYieldPct"),
         "projectedNextYearIncome": result.get("projectedNextYearIncome"),
         "projectedIncreasePct": result.get("projectedIncreasePct"),
+        "projections": result.get("projections"),
         "top1Pct": concentration["top1Pct"],
         "top3Pct": concentration["top3Pct"],
         "hhi": concentration["hhi"],

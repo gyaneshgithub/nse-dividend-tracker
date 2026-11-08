@@ -6,6 +6,11 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Next-year income scenarios.** For a selected year, `GET /api/analysis` now
+  returns `projections` with conservative, base and growth bands (plus notes).
+  `projectedNextYearIncome` remains the base scenario. The dashboard shows Low /
+  Base / Growth chips under the headline projection; Analysis and Insight Income
+  tabs list all three.
 - **Portfolio coach API (stub).** `GET /api/coach?year=2026|all` returns a stable,
   read-only briefing payload (`briefing`, `tasks`, `events`, `counts`, `ruleset`)
   computed from local holdings. Task and event lists are empty until coach rules

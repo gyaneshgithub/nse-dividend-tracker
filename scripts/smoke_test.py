@@ -128,6 +128,13 @@ def main() -> int:
             status, body = request(port, "GET", "/api/analysis?year=2026")
             payload = json.loads(body)
             check(status == 200 and payload["totalIncome"] == 10.0, "analysis totals")
+            projections = payload.get("projections") or {}
+            check(
+                status == 200
+                and projections.get("base", {}).get("income") == payload.get("projectedNextYearIncome")
+                and projections.get("conservative", {}).get("income") is not None,
+                "analysis projection scenarios",
+            )
 
             status, body = request(port, "GET", "/api/search?q=Smoke")
             check(status == 200, "semantic search responds")

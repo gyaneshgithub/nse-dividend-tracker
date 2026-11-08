@@ -211,6 +211,17 @@ aggregates:
 Analysis does not recompute from the browser's table; it reads the indexed
 payout records, which are rebuilt whenever a holding changes.
 
+For a specific calendar year, analysis also returns `projections`:
+
+- **conservative** — average quarterly quantity × flat total dividend per share;
+- **base** — peak quarterly quantity × flat dividend (same as
+  `projectedNextYearIncome`);
+- **growth** — peak quantity × dividend grown by per-share CAGR (capped at ±15%;
+  flat dividend when fewer than three years of payout history).
+
+The all-years view omits `projections` and sets `projectedNextYearIncome` to
+`null`.
+
 ## Insight
 
 `GET /api/insight?year=YYYY|all` builds a descriptive score of dividend health

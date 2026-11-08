@@ -2,7 +2,8 @@
 const LS_HOLDINGS = 'dividendTracker.holdings.v1';
 const LS_SYNCED = 'dividendTracker.synced.v1';
 
-let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, sortKey: null, sortDir: 'asc' };
+let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, sortKey: null, sortDir: 'asc', summaryProjections: null };
+let summaryProjectionToken = 0;
 let refreshing = false;
 const syncTimers = {};
 const pendingDefaults = {};
@@ -37,6 +38,7 @@ const el = {
   projectionCard: document.getElementById('projection-card'),
   sumProjected: document.getElementById('sum-projected'),
   sumProjectedDelta: document.getElementById('sum-projected-delta'),
+  projectionScenarios: document.getElementById('projection-scenarios'),
   sumMonthly: document.getElementById('sum-monthly'),
   sumMonthlyLabel: document.getElementById('sum-monthly-label'),
   sumYield: document.getElementById('sum-yield'),
@@ -703,6 +705,55 @@ function projectedIncomeFor(h, year) {
   return maxQuarterQtyFor(h, year) * totalDividendFor(h, year);
 }
 
+function renderProjectionScenarios() {
+  const row = el.projectionScenarios;
+  const projections = state.summaryProjections;
+  if (!row) return;
+  if (!projections || state.year === 'all') {
+    row.hidden = true;
+    row.innerHTML = '';
+    return;
+  }
+  const bands = [
+    { key: 'conservative', label: 'Low' },
+    { key: 'base', label: 'Base' },
+    { key: 'growth', label: 'Growth' },
+  ];
+  const note = (projections.notes || []).join(' ');
+  row.title = note;
+  row.hidden = false;
+  row.innerHTML = bands.map(b => {
+    const band = projections[b.key];
+    if (!band || band.income === null || band.income === undefined) return '';
+    return `<span title="${esc(projections.notes?.[bands.indexOf(b)] || '')}">${b.label}: <strong>${esc(fmtMoney(band.income))}</strong></span>`;
+  }).join('');
+}
+
+async function loadSummaryProjections() {
+  const year = state.year;
+  if (year === 'all' || year === null) {
+    state.summaryProjections = null;
+    renderProjectionScenarios();
+    return;
+  }
+  const token = ++summaryProjectionToken;
+  try {
+    const res = await fetch('/api/analysis?year=' + encodeURIComponent(year));
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
+    if (token !== summaryProjectionToken) return;
+    state.summaryProjections = json.projections || null;
+    if (json.projectedNextYearIncome !== null && json.projectedNextYearIncome !== undefined) {
+      el.sumProjected.textContent = fmtMoney(json.projectedNextYearIncome);
+    }
+    renderProjectionScenarios();
+  } catch (e) {
+    if (token !== summaryProjectionToken) return;
+    state.summaryProjections = null;
+    renderProjectionScenarios();
+  }
+}
+
 function ttmPerShare(h) {
   const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 1);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -1161,6 +1212,7 @@ function renderSummary() {
     const sign = direction === 'up' ? '+' : (direction === 'down' ? '-' : '');
     el.sumProjectedDelta.textContent = `${arrow}${sign}${Math.abs(pct).toFixed(1)}% vs ${year}`;
   }
+  renderProjectionScenarios();
 
   el.sumMonthlyLabel.textContent = year === 'all' ? 'Monthly income' : 'Monthly income ' + year;
   el.sumMonthly.textContent = state.holdings.length && year !== 'all' ? fmtMoney(total / 12) : '—';
@@ -1417,6 +1469,17 @@ function renderAnalysis(data) {
       </div>`).join('')
     : '<div class="analysis-empty">No payouts recorded.</div>';
 
+  const projectionRows = data.projections ? `
+    <div class="analysis-section">
+      <h3>Next year income scenarios · ${esc(yearLabel)}</h3>
+      <div class="analysis-grid">
+        <div class="analysis-card"><div class="label">Conservative</div><div class="value">${fmtMoney(data.projections.conservative.income)}</div></div>
+        <div class="analysis-card"><div class="label">Base</div><div class="value purple">${fmtMoney(data.projections.base.income)}</div></div>
+        <div class="analysis-card"><div class="label">Growth</div><div class="value green">${fmtMoney(data.projections.growth.income)}</div></div>
+      </div>
+      <div class="meta" style="margin-top:8px">${(data.projections.notes || []).map(n => esc(n)).join(' ')}</div>
+    </div>` : '';
+
   el.analysisBody.innerHTML = `
     <div class="analysis-grid">
       <div class="analysis-card"><div class="label">Total income · ${esc(yearLabel)}</div><div class="value orange">${fmtMoney(data.totalIncome)}</div></div>
@@ -1424,6 +1487,7 @@ function renderAnalysis(data) {
       <div class="analysis-card"><div class="label">Avg. yield (TTM)</div><div class="value green">${fmtPct(data.avgYieldPct)}</div></div>
       <div class="analysis-card"><div class="label">Holdings</div><div class="value">${data.holdingsCount}</div></div>
     </div>
+    ${projectionRows}
     <div class="analysis-section"><h3>Income by year</h3>${yearRows}</div>
     <div class="analysis-section"><h3>Income by stock · ${esc(yearLabel)}</h3>${stockRows}</div>
     <div class="analysis-section"><h3>Quarterly income · ${esc(yearLabel)}</h3>${quarterRows}</div>
@@ -1686,10 +1750,22 @@ function insightOverview(data) {
     </div>`;
 }
 
+function insightScenarioBand(stats, key, label, valueClass) {
+  const band = stats.projections && stats.projections[key];
+  if (!band || band.income === null) return '';
+  const note = (stats.projections.notes || [])[{ conservative: 0, base: 1, growth: 2 }[key]] || '';
+  return insightKpi(`${label} scenario`, fmtMoney(band.income), valueClass, note);
+}
+
 function insightIncome(data) {
   const stats = data.stats, isYear = data.year !== 'all';
   const projection = stats.projectedNextYearIncome;
   const change = stats.projectedIncreasePct;
+  const scenarioCards = isYear && stats.projections
+    ? insightScenarioBand(stats, 'conservative', 'Conservative', '') +
+      insightScenarioBand(stats, 'base', 'Base', 'purple') +
+      insightScenarioBand(stats, 'growth', 'Growth', 'green')
+    : '';
   const cards = [
     insightKpi(`Total income · ${data.yearLabel}`, fmtMoney(stats.totalIncome), 'orange',
       'Dividend income recorded for the selected period.'),
@@ -1710,6 +1786,7 @@ function insightIncome(data) {
     : '';
 
   return `<div class="insight-kpis">${cards}</div>${changeLine}
+    ${scenarioCards ? `<div class="insight-subhead">Next year scenarios</div><div class="insight-kpis">${scenarioCards}</div>` : ''}
     <div class="insight-subhead">Income by year</div>
     ${insightYearChart(data.charts.incomeByYear, data.year)}
     <div class="insight-subhead">Where the income comes from</div>
@@ -1885,6 +1962,7 @@ function render() {
   renderSummary();
   renderTable();
   renderHistory();
+  loadSummaryProjections();
 }
 // ---------- events ----------
 el.yearFilter.addEventListener('change', () => {

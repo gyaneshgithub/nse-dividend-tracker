@@ -654,22 +654,105 @@ def _payout_metadatas():
 # ---------------------------------------------------------------------------
 # analysis
 # ---------------------------------------------------------------------------
-def _projected_next_year_income(holdings, year):
-    """Estimate next year's income from this year's peak quarterly holding.
+GROWTH_CAGR_CAP = 0.15
+GROWTH_MIN_YEARS = 3
 
-    For each stock: max(Q1, Q2, Q3, Q4) × total dividend per share for the
-    year. This assumes the highest quarterly quantity is held for the whole
-    next year and the same total dividend is paid again. The all-years view
-    has no single base year, so it returns None there.
-    """
+
+def _avg_quarter_qty(holding, year):
+    total = sum(_qty_for_quarter(holding, f"{year}-Q{q}") for q in (1, 2, 3, 4))
+    return total / 4.0
+
+
+def _peak_quarter_qty(holding, year):
+    return max(_qty_for_quarter(holding, f"{year}-Q{q}") for q in (1, 2, 3, 4))
+
+
+def _dps_series_until(holding, year):
+    """Annual dividend per share, oldest first, optionally capped at `year`."""
+    totals = holding.get("yearTotals") or {}
+    series = []
+    for key, value in totals.items():
+        try:
+            series_year = int(key)
+            amount = float(value)
+        except (TypeError, ValueError):
+            continue
+        if amount > 0:
+            series.append((series_year, amount))
+    series.sort()
+    if year is not None:
+        series = [(series_year, amount) for series_year, amount in series if series_year <= year]
+    return series
+
+
+def _dps_cagr(series):
+    if len(series) < 2:
+        return None
+    first_year, first = series[0]
+    last_year, last = series[-1]
+    span = last_year - first_year
+    if span <= 0 or first <= 0:
+        return None
+    return (last / first) ** (1.0 / span) - 1.0
+
+
+def _clamp_cagr(cagr):
+    if cagr is None:
+        return None
+    return max(-GROWTH_CAGR_CAP, min(GROWTH_CAGR_CAP, cagr))
+
+
+def _projected_income_for_holding(holding, year, scenario):
+    dps = float((holding.get("yearTotals") or {}).get(str(year)) or 0)
+    if scenario == "conservative":
+        return _avg_quarter_qty(holding, year) * dps
+    if scenario == "base":
+        return _peak_quarter_qty(holding, year) * dps
+    if scenario == "growth":
+        qty = _peak_quarter_qty(holding, year)
+        series = _dps_series_until(holding, year)
+        cagr = _dps_cagr(series)
+        if len(series) >= GROWTH_MIN_YEARS and cagr is not None:
+            dps *= 1.0 + _clamp_cagr(cagr)
+        return qty * dps
+    raise ValueError(f"unknown projection scenario: {scenario}")
+
+
+def _scenario_income(holdings, year, scenario):
     if year is None:
         return None
-    projected = 0.0
-    for holding in holdings:
-        peak = max(_qty_for_quarter(holding, f"{year}-Q{q}") for q in (1, 2, 3, 4))
-        total_dividend = float((holding.get("yearTotals") or {}).get(str(year)) or 0)
-        projected += peak * total_dividend
-    return round(projected, 2)
+    return round(sum(_projected_income_for_holding(h, year, scenario) for h in holdings), 2)
+
+
+def _projection_increase_pct(projected, total_income):
+    if projected is None or total_income <= 0:
+        return None
+    return round((projected - total_income) / total_income * 100, 2)
+
+
+def _build_projections(holdings, year, total_income):
+    if year is None:
+        return None
+
+    def band(scenario):
+        income = _scenario_income(holdings, year, scenario)
+        return {
+            "income": income,
+            "increasePct": _projection_increase_pct(income, total_income),
+        }
+
+    cap_pct = int(GROWTH_CAGR_CAP * 100)
+    return {
+        "conservative": band("conservative"),
+        "base": band("base"),
+        "growth": band("growth"),
+        "notes": [
+            f"Conservative: average quarterly quantity × {year} total dividend per share.",
+            "Base: highest quarterly quantity × same dividend (headline projection).",
+            f"Growth: highest quantity × dividend grown by per-share CAGR "
+            f"(±{cap_pct}% cap; flat when fewer than {GROWTH_MIN_YEARS} payout years).",
+        ],
+    }
 
 
 def analysis(year="all"):
@@ -753,10 +836,9 @@ def analysis(year="all"):
     yields = [r["yieldPct"] for r in by_stock if r["yieldPct"] is not None]
     avg_yield = round(sum(yields) / len(yields), 2) if yields else None
 
-    projected = _projected_next_year_income(holdings, year_value)
-    projected_increase = None
-    if projected is not None and total_income > 0:
-        projected_increase = round((projected - total_income) / total_income * 100, 2)
+    projections = _build_projections(holdings, year_value, total_income)
+    projected = None if projections is None else projections["base"]["income"]
+    projected_increase = None if projections is None else projections["base"]["increasePct"]
 
     return {
         "year": "all" if year_value is None else year_value,
@@ -765,6 +847,7 @@ def analysis(year="all"):
         "totalIncome": total_income,
         "projectedNextYearIncome": projected,
         "projectedIncreasePct": projected_increase,
+        "projections": projections,
         "totalPayouts": len(metas),
         "holdingsCount": len(holdings),
         "avgYieldPct": avg_yield,

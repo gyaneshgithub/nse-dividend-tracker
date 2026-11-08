@@ -123,7 +123,31 @@ def test_analysis_projects_next_year_from_peak_quarters(db):
     assert result["totalIncome"] == 35.0
     assert result["projectedNextYearIncome"] == 59.0
     assert result["projectedIncreasePct"] == 68.57
+    projections = result["projections"]
+    assert projections["base"]["income"] == 59.0
+    assert projections["conservative"]["income"] == 30.5
+    assert projections["growth"]["income"] == 59.0
+    assert len(projections["notes"]) == 3
     assert db.analysis("all")["projectedNextYearIncome"] is None
+    assert db.analysis("all")["projections"] is None
+
+
+def test_analysis_growth_scenario_uses_capped_cagr(db):
+    db.save_holding(
+        holding(
+            quarters={"2026-Q1": 10},
+            dividends=[
+                {"date": "2024-05-01", "amount": 2.0},
+                {"date": "2025-05-01", "amount": 2.2},
+                {"date": "2026-05-01", "amount": 2.5},
+            ],
+        )
+    )
+    result = db.analysis("2026")
+    base = result["projections"]["base"]["income"]
+    growth = result["projections"]["growth"]["income"]
+    assert base == 25.0
+    assert growth > base
 
 
 def test_backup_mirror_restores_empty_database(db, tmp_path, monkeypatch):
