@@ -1971,6 +1971,9 @@ function insightHoldings(data) {
     if (!row.hasPrice) {
       flags.push('<span class="insight-flag" title="No price on record, so yield is excluded">no price</span>');
     }
+    if (row.yieldVsMedianPct !== null && row.yieldVsMedianPct !== undefined && row.yieldVsMedianPct > 10) {
+      flags.push(`<span class="insight-flag cut" title="Yield is ${row.yieldVsMedianPct}% above this stock's own refresh median">yield rich</span>`);
+    }
     if ((row.yearsOfHistory || 0) < 3) {
       flags.push('<span class="insight-flag" title="Fewer than three years of recorded dividend history">short history</span>');
     }

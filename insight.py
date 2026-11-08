@@ -23,6 +23,7 @@ import statistics
 from datetime import datetime, timezone
 
 import db
+from db import _yield_pct
 
 # Weights for the components that can be computed offline today. When the
 # deferred components arrive they join this table and the rest are
@@ -31,11 +32,12 @@ WEIGHTS = {
     "income": 0.40,
     "growth": 0.30,
     "diversification": 0.30,
+    "valuation": 0.15,
 }
 
+VALUATION_MIN_SNAPSHOTS = 5
+
 DEFERRED_COMPONENTS = [
-    {"key": "valuation", "label": "Valuation vs own history", "phase": 3,
-     "reason": "needs historical prices to compare today's yield with the stock's own average"},
     {"key": "technicals", "label": "Technical posture", "phase": 3,
      "reason": "needs daily price history for moving averages and RSI"},
     {"key": "youth", "label": "Young-consumer exposure", "phase": 5,
@@ -170,12 +172,28 @@ def _cuts(series):
     return out
 
 
+def _valuation_score(holding):
+    history = holding.get("priceHistory") or []
+    yields = [float(row["yieldPct"]) for row in history if row.get("yieldPct") is not None]
+    current = _yield_pct(holding)
+    if current is None or len(yields) < VALUATION_MIN_SNAPSHOTS:
+        return None, None
+    median = statistics.median(yields)
+    if median <= 0:
+        return None, None
+    ratio = current / median
+    score = _clamp(100.0 - 200.0 * (ratio - 1.0))
+    versus = round((ratio - 1.0) * 100, 1)
+    return round(score, 1), versus
+
+
 def _holding_insight(holding, share_pct, year=None):
     series = _series_until(holding, year)
     stability = _stability(series)
     cagr = _cagr(series)
     streak = _streak(series)
     cuts = _cuts(series)
+    valuation_score, yieldVsMedianPct = _valuation_score(holding)
 
     stability_score = None
     if stability is not None:
@@ -209,6 +227,9 @@ def _holding_insight(holding, share_pct, year=None):
         "dps": [{"year": year, "amount": amount} for year, amount in series[-5:]],
         "hasPrice": bool(holding.get("price")),
         "yearsOfHistory": len(series),
+        "valuationScore": valuation_score,
+        "yieldVsMedianPct": yieldVsMedianPct,
+        "priceSnapshots": len(holding.get("priceHistory") or []),
     }
 
 
@@ -498,6 +519,12 @@ def build(year="all"):
 
     diversification_score = _diversification_score(concentration)
 
+    valuation_rows = [row for row in rows if row.get("valuationScore") is not None]
+    valuation_score = _weighted(
+        [row["valuationScore"] for row in valuation_rows],
+        [row["sharePct"] or 1.0 for row in valuation_rows],
+    )
+
     components = [
         _component(
             "income", "Income resilience", income_score, WEIGHTS["income"],
@@ -510,6 +537,13 @@ def build(year="all"):
         _component(
             "diversification", "Diversification", diversification_score, WEIGHTS["diversification"],
             "How evenly income is spread across holdings, with an extra penalty when the top three dominate.",
+        ),
+        _component(
+            "valuation",
+            "Yield vs own history",
+            valuation_score,
+            WEIGHTS["valuation"],
+            "Compares today's yield with the stock's own refresh history (at least five snapshots).",
         ),
     ]
 

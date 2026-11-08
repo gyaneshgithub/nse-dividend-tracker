@@ -71,6 +71,7 @@ def test_insight_endpoint_returns_scores_without_writing(client, db):
         "income",
         "growth",
         "diversification",
+        "valuation",
     ]
     assert payload["narrative"]["headline"]
     assert payload["stats"]["totalIncome"] == 30.0

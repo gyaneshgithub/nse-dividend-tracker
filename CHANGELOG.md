@@ -6,6 +6,10 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Yield snapshot history and valuation insight.** Each successful refresh appends
+  to `priceHistory` on the holding. With five or more snapshots, Insight scores
+  **Yield vs own history** (valuation component) from today's yield versus the
+  stock's own refresh median.
 - **Monthly cashflow and India FY view.** Analysis returns `cashflowByMonth`; the
   year filter adds financial years (April–March). FY mode totals income by
   payout date and shows a monthly cashflow section in Analysis.

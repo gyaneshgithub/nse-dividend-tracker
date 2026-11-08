@@ -96,9 +96,11 @@ def test_scores_shape_and_ranges(db):
         "income",
         "growth",
         "diversification",
+        "valuation",
     ]
     for component in scores["components"]:
-        assert 0 <= component["score"] <= 100
+        if component["score"] is not None:
+            assert 0 <= component["score"] <= 100
         assert component["weight"] > 0
     assert data["year"] == 2026
     assert data["currency"] == "INR"
@@ -255,7 +257,35 @@ def test_deferred_components_are_declared_not_scored(db):
 
     assert "technicals" in deferred
     assert "youth" in deferred
+    assert "valuation" not in deferred
     assert keys.isdisjoint(deferred)
+
+
+def test_valuation_component_when_snapshots_exist(db):
+    import insight
+
+    history = [
+        {
+            "at": f"2025-0{i}-01T00:00:00+00:00",
+            "price": 100,
+            "yieldPct": 2.0,
+            "annualDividend": 2.0,
+        }
+        for i in range(1, 6)
+    ]
+    db.save_holding(
+        holding(
+            price=80,
+            status="ok",
+            lastFetched="2025-06-01T00:00:00+00:00",
+            priceHistory=history,
+            quarters={"2026-Q1": 10},
+            dividends=[{"date": "2026-05-01", "amount": 2.5}],
+        )
+    )
+    data = insight.build("2026")
+    valuation = next(item for item in data["scores"]["components"] if item["key"] == "valuation")
+    assert valuation["score"] is not None
 
 
 @pytest.mark.parametrize("year", ["2026", "all", ""])

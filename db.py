@@ -47,6 +47,7 @@ DB_DIR = _env_path("DIVIDEND_DB_DIR", "chroma_db")
 DATA_DIR = _env_path("DIVIDEND_DATA_DIR", "data")
 BACKUP_FILE = os.path.join(DATA_DIR, "portfolio.json")
 EMBED_DIM = 384
+PRICE_HISTORY_MAX = 64
 SYMBOL_RE = re.compile(r"^(?=.{2,15}$)[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$")
 QUARTER_RE = re.compile(r"^\d{4}-Q[1-4]$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -109,6 +110,36 @@ def _embed(text):
 # ---------------------------------------------------------------------------
 def quarter_key(date):
     return f"{int(date[:4])}-Q{(int(date[5:7]) - 1) // 3 + 1}"
+
+
+def _normalize_price_history(raw):
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw[-PRICE_HISTORY_MAX:]:
+        if not isinstance(item, dict):
+            continue
+        try:
+            price = float(item.get("price"))
+        except (TypeError, ValueError):
+            continue
+        try:
+            yield_pct = float(item["yieldPct"]) if item.get("yieldPct") is not None else None
+        except (TypeError, ValueError):
+            yield_pct = None
+        try:
+            annual = float(item["annualDividend"]) if item.get("annualDividend") is not None else None
+        except (TypeError, ValueError):
+            annual = None
+        out.append(
+            {
+                "at": str(item.get("at") or "")[:40] or None,
+                "price": round(price, 4),
+                "yieldPct": yield_pct,
+                "annualDividend": annual,
+            }
+        )
+    return out
 
 
 def _normalize_quarters(raw):
@@ -199,6 +230,7 @@ def normalize_holding(raw):
         "status": str(raw.get("status") or "ok")[:20],
         "lastError": str(raw.get("lastError") or "")[:500] or None,
         "lastFetched": str(raw.get("lastFetched") or "")[:40] or None,
+        "priceHistory": _normalize_price_history(raw.get("priceHistory")),
         "updatedAt": str(raw.get("updatedAt") or "")[:40]
         or datetime.now(timezone.utc).isoformat(),
     }
@@ -280,6 +312,11 @@ def _merge_holding(existing, incoming):
         merged["dividends"] = incoming["dividends"]
     merged["yearTotals"] = _year_totals(merged["dividends"])
 
+    longer = existing.get("priceHistory") or []
+    if len((incoming.get("priceHistory") or [])) > len(longer):
+        longer = incoming.get("priceHistory") or []
+    merged["priceHistory"] = longer
+
     merged["updatedAt"] = max(
         (holding["updatedAt"] for holding in (existing, incoming) if holding.get("updatedAt")),
         key=_parse_time,
@@ -295,6 +332,39 @@ def _qty_for_quarter(holding, key):
     # Missing means no quantity was recorded for this specific year/quarter.
     # Never inherit the base shares or another quarter's value.
     return 0
+
+
+def _annual_dividend_hint(holding):
+    totals = holding.get("yearTotals") or {}
+    if not totals:
+        return None
+    try:
+        year = max(int(key) for key in totals.keys())
+    except ValueError:
+        return None
+    value = float(totals.get(str(year)) or 0)
+    return round(value, 4) if value > 0 else None
+
+
+def _record_price_snapshot(holding):
+    """Append a yield snapshot when a refresh supplies price and lastFetched."""
+    price = holding.get("price")
+    if not price or holding.get("status") not in (None, "ok"):
+        return list(holding.get("priceHistory") or [])
+    at = holding.get("lastFetched") or datetime.now(timezone.utc).isoformat()
+    snapshot = {
+        "at": at,
+        "price": round(float(price), 4),
+        "yieldPct": _yield_pct(holding),
+        "annualDividend": _annual_dividend_hint(holding),
+    }
+    history = list(holding.get("priceHistory") or [])
+    if history:
+        last = history[-1]
+        if last.get("at") == snapshot["at"] and last.get("price") == snapshot["price"]:
+            return history
+    history.append(snapshot)
+    return history[-PRICE_HISTORY_MAX:]
 
 
 def _yield_pct(holding):
@@ -440,6 +510,10 @@ def _holding_metadata(h):
             h.get("yearTotals") or _year_totals(h["dividends"]),
             separators=(",", ":"),
         ),
+        "price_history_json": json.dumps(
+            h.get("priceHistory") or [],
+            separators=(",", ":"),
+        ),
     }
 
 
@@ -538,6 +612,8 @@ def save_holding(raw):
             _write_tombstones_locked(tombstones)
         existing = _load_holding_locked(incoming["ticker"])
         merged = _merge_holding(existing, incoming) if existing else incoming
+        if merged.get("lastFetched") and merged.get("price"):
+            merged["priceHistory"] = _record_price_snapshot(merged)
         return _save_holding_locked(merged)
 
 
@@ -607,6 +683,7 @@ def _holding_from_metadata(meta):
         "status": meta.get("status") or "ok",
         "lastError": meta.get("last_error") or None,
         "lastFetched": meta.get("last_fetched") or None,
+        "priceHistory": _normalize_price_history(json.loads(meta.get("price_history_json") or "[]")),
         "updatedAt": meta.get("updated_at") or None,
     }
 

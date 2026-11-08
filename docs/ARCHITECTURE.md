@@ -231,6 +231,10 @@ previous year (`quantity`, `dps`, `composition`), and `growthByTicker` carries
 omitted for FY requests. Every scoped analysis includes `cashflowByMonth`
 (payment month × income).
 
+Holdings may carry `priceHistory`: append-only yield snapshots recorded when a
+refresh supplies `price`, `lastFetched` and `status=ok`. They are stored in
+Chroma metadata and the JSON mirror, capped at 64 entries per stock.
+
 ## Insight
 
 `GET /api/insight?year=YYYY|all` builds a descriptive score of dividend health

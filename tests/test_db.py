@@ -188,6 +188,26 @@ def test_analysis_fy_filters_apr_to_mar(db):
     assert result["projections"] is None
 
 
+def test_price_history_grows_on_refresh(db):
+    db.save_holding(
+        holding(
+            status="ok",
+            lastFetched="2026-01-01T00:00:00+00:00",
+            price=100,
+        )
+    )
+    db.save_holding(
+        holding(
+            status="ok",
+            lastFetched="2026-02-01T00:00:00+00:00",
+            price=110,
+        )
+    )
+    loaded = db.load_holdings()[0]
+    assert len(loaded["priceHistory"]) == 2
+    assert loaded["priceHistory"][-1]["price"] == 110.0
+
+
 def test_cashflow_by_month(db):
     db.save_holding(
         holding(

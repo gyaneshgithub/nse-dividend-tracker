@@ -210,6 +210,9 @@ available:
   projected next-year change.
 - **Diversification** (30%) — how evenly income is spread, capped by the number
   of income sources and penalised when the top three dominate.
+- **Yield vs own history** (15%, when data allows) — today's yield compared with
+  the median from refresh snapshots (needs at least five stored snapshots per
+  holding).
 
 Scores describe the recorded data; they are not forecasts, ratings, or advice.
 Selecting a past year scores only the dividend history up to that year. If a
