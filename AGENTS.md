@@ -94,6 +94,7 @@ python -m pytest
 python scripts/smoke_test.py
 python scripts/check_repo.py
 python scripts/check_docs.py
+python scripts/check_ci.py      # latest CI run on the current branch must be green
 ```
 
 `python scripts/install_hooks.py` installs the same gate as Git hooks, so

@@ -13,6 +13,7 @@ Exit code 0 means every check passed, 1 means at least one failed.
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import time
@@ -24,6 +25,13 @@ ROOT = Path(__file__).resolve().parents[1]
 def _steps(stage: str):
     """Return the checks for a stage, in the order CI runs them."""
     python = sys.executable
+    branch = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip() or "main"
     steps = [
         ("Lint (ruff)", [python, "-m", "ruff", "check", "."], "commit"),
         ("Tests (pytest)", [python, "-m", "pytest", "-q"], "commit"),
@@ -33,6 +41,7 @@ def _steps(stage: str):
             ("Smoke test", [python, "scripts/smoke_test.py"], "push"),
             ("Repository audit", [python, "scripts/check_repo.py"], "push"),
             ("Documentation check", [python, "scripts/check_docs.py"], "push"),
+            ("CI status", [python, "scripts/check_ci.py", branch], "push"),
         ]
     return steps
 
@@ -57,6 +66,43 @@ def _run(step):
     if output.strip():
         print(output.rstrip(), file=sys.stderr, flush=True)
     return False
+
+
+def check_ci(branch: str) -> tuple[bool, str]:
+    """Ask the GitHub CLI for the latest run of the CI workflow on this branch.
+
+    Returns (ok, note). ok is False when the latest run concluded with a
+    failure. When the CLI is unavailable or unauthenticated we skip the check
+    with a warning rather than blocking a local push.
+    """
+    result = subprocess.run(
+        [
+            "gh",
+            "run",
+            "list",
+            "--workflow",
+            "CI",
+            "--branch",
+            branch,
+            "--limit",
+            "1",
+            "--json",
+            "conclusion",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return True, "CI check skipped (gh CLI unavailable or not authenticated)"
+    runs = json.loads(result.stdout or "[]")
+    if not runs:
+        return True, "CI check skipped (no CI runs found for this branch)"
+    conclusion = runs[0].get("conclusion")
+    if conclusion != "success":
+        return False, f"CI latest run concluded: {conclusion}"
+    return True, f"CI latest run on {branch}: success"
 
 
 def main(argv=None) -> int:

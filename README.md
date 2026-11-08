@@ -168,8 +168,12 @@ Useful checks:
 python scripts/check_setup.py   # dependencies, paths, ChromaDB self-test
 python scripts/smoke_test.py    # end-to-end API test on temporary storage
 python scripts/check_repo.py    # privacy / packaging audit
-python scripts/preflight.py     # everything CI requires, in order
+python scripts/preflight.py     # the full gate (see below)
+python scripts/check_ci.py      # latest CI run on the current branch must be green
 ```
+
+The full preflight gate runs, in order: lint, tests, smoke test, repository
+audit, documentation check, CI status.
 
 ### Pre-commit and pre-push checks
 
@@ -180,11 +184,11 @@ python scripts/install_hooks.py
 ```
 
 After that, `git commit` runs lint plus the test suite, and `git push` also
-runs the smoke test, the repository privacy audit and the documentation check.
-A failing check blocks the operation. Use `python scripts/preflight.py` to run
-the same gate by hand, or `git commit --no-verify` / `git push --no-verify` to
-bypass it in an emergency. Hooks are local configuration: each clone must
-install them once.
+runs the smoke test, the repository privacy audit, the documentation check and
+the CI status check. A failing check blocks the operation. Use `python
+scripts/preflight.py` to run the same gate by hand, or `git commit --no-verify` /
+`git push --no-verify` to bypass it in an emergency. Hooks are local
+configuration: each clone must install them once.
 
 CI runs the test suite on Linux (Python 3.11–3.13), Windows, and macOS. See
 [.github/workflows/ci.yml](.github/workflows/ci.yml).
