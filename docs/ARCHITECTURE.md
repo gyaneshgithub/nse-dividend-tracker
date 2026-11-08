@@ -236,6 +236,40 @@ recorded income; the components remain visible so the popup can explain the
 gap. Signals that need price history or external data are declared as deferred
 rather than scored as zero.
 
+## Coach
+
+`GET /api/coach?year=YYYY|all` builds a read-only portfolio briefing from local
+holdings and the same analysis aggregates used by insight. Nothing is written,
+bumped or mirrored.
+
+The response contract (stable across releases):
+
+- `briefing` — `headline` and `summary` for the selected period;
+- `tasks` — prioritized action items (empty in the stub ruleset);
+- `events` — upcoming or recent dividend-related items (empty in the stub);
+- `counts` — `total`, `p0`, `p1`, `p2` tallies for the task list;
+- `ruleset` — `{ id, version }` so clients know which rule engine produced the payload;
+- `disclaimer` — same descriptive-not-advice wording as insight.
+
+Each task, when populated, uses:
+
+```json
+{
+  "id": "unique-stable-id",
+  "priority": "p0",
+  "type": "missing-quantity",
+  "ticker": "TCS",
+  "year": 2026,
+  "quarter": "2026-Q2",
+  "message": "Enter Q2 quantity for TCS",
+  "action": "focus-quarter"
+}
+```
+
+`action` is a UI hint (`focus-quarter`, `refresh`, `open-insight`, …), not a
+server-side command. Events use `{ "id", "type", "ticker", "message", "at" }`
+with ISO-8601 timestamps where applicable.
+
 ## Search
 
 `GET /api/search?q=...&limit=N` embeds the query with the same deterministic
@@ -256,6 +290,7 @@ distance-derived score.
 | `GET` | `/api/dividends?symbol=...` | Upstream dividend data |
 | `GET` | `/api/analysis?year=...` | Income analysis |
 | `GET` | `/api/insight?year=...` | Read-only portfolio scores, narrative and charts |
+| `GET` | `/api/coach?year=...` | Read-only briefing, tasks and events (ruleset expands over time) |
 | `GET` | `/api/search?q=...` | Semantic payout search |
 | `GET` | `/api/storage` | ChromaDB status |
 

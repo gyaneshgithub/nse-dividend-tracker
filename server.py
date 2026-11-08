@@ -30,6 +30,8 @@ Analysis
 GET /api/analysis?year=2026|all    -> income by year / stock / quarter
 GET /api/insight?year=2026|all     -> scores, narrative and chart data (read-only,
                                       never stored)
+GET /api/coach?year=2026|all       -> briefing, tasks and events (read-only,
+                                      never stored; rules expand over time)
 GET /api/search?q=...&limit=10     -> semantic search over indexed payouts
 GET /api/storage                   -> ChromaDB status, counts and revision
 GET /api/health                    -> health + storage status

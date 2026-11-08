@@ -181,6 +181,7 @@ native run. Do not expose the port to the public internet.
 ├── routes/                Flask blueprints by area (pages, portfolio, dividends, ...)
 ├── db.py                  ChromaDB storage, merging, tombstones, analysis
 ├── insight.py             Read-only portfolio scoring and narrative
+├── coach.py               Read-only portfolio briefing and coach tasks (API)
 ├── market.py              NSE dividend fetch, parse, cache
 ├── run.py                 Universal launcher (creates .venv on first run)
 ├── start.sh / start.bat   Platform wrappers

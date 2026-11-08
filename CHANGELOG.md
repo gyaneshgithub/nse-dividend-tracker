@@ -6,6 +6,10 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Portfolio coach API (stub).** `GET /api/coach?year=2026|all` returns a stable,
+  read-only briefing payload (`briefing`, `tasks`, `events`, `counts`, `ruleset`)
+  computed from local holdings. Task and event lists are empty until coach rules
+  land in a follow-up change. New module: `coach.py`.
 - **First-run onboarding.** When the tracker is empty, a short panel explains
   how to add an NSE ticker, that dividend data comes from stockanalysis.com and
   is cached for six hours, and that holdings are stored locally. Example chips

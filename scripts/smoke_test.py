@@ -132,6 +132,16 @@ def main() -> int:
             status, body = request(port, "GET", "/api/search?q=Smoke")
             check(status == 200, "semantic search responds")
 
+            status, body = request(port, "GET", "/api/coach?year=2026")
+            coach_payload = json.loads(body)
+            check(
+                status == 200
+                and coach_payload.get("briefing")
+                and coach_payload.get("tasks") == []
+                and coach_payload.get("events") == [],
+                "coach briefing responds",
+            )
+
             status, body = request(port, "DELETE", "/api/portfolio/SMOKE")
             check(status == 200, "delete holding")
 

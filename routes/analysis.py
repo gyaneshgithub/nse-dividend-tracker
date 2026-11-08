@@ -1,7 +1,8 @@
-"""Analysis, portfolio insight and semantic search."""
+"""Analysis, portfolio insight, coach briefing and semantic search."""
 
 from __future__ import annotations
 
+import coach
 import db
 import insight
 from flask import Blueprint, jsonify, request
@@ -25,6 +26,15 @@ def api_insight():
     """Deterministic portfolio insight. Read-only: nothing is persisted."""
     try:
         return jsonify(insight.build(request.args.get("year", "all")))
+    except Exception as exc:
+        return storage_error(exc)
+
+
+@bp.get("/api/coach")
+def api_coach():
+    """Deterministic portfolio coach briefing. Read-only: nothing is persisted."""
+    try:
+        return jsonify(coach.build(request.args.get("year", "all")))
     except Exception as exc:
         return storage_error(exc)
 

@@ -14,6 +14,7 @@ A local-first NSE dividend tracker:
   analysis/insight/search, system status.
 - `db.py` — embedded ChromaDB storage, merging, tombstones, analysis, search.
 - `insight.py` — read-only portfolio scoring and narrative (no writes, no network).
+- `coach.py` — read-only portfolio briefing, tasks and events (no writes, no network).
 - `market.py` — fetches and parses dividend history from stockanalysis.com.
 - `templates/index.html` — page shell; `static/app.css` and `static/app.js`
   hold the UI styling and behaviour (vanilla, no build step).
