@@ -1365,6 +1365,7 @@ function rowFor(h, year) {
   const actions = `<td class="num">${actionsCell(h)}</td>`;
   const yieldCell = `<td class="num yield-cell" title="Trailing 12-month dividend per share ÷ current price">${fmtPct(yieldFor(h))}</td>`;
   const growthRow = growthForTicker(h.ticker);
+  const fyView = isFyYear(year);
   const yoy = year !== 'all' && year !== null && !String(year).startsWith('fy:') ? dpsYoyFor(h, year) : null;
   const cagr = growthRow && growthRow.dpsCagrPct !== null ? growthRow.dpsCagrPct : null;
   const growthCells = (year === 'all' || fyView) ? '' :
