@@ -68,6 +68,8 @@ const el = {
   importYear: document.getElementById('import-year'),
   importText: document.getElementById('import-text'),
   importFile: document.getElementById('import-file'),
+  importTemplateDownload: document.getElementById('import-template-download'),
+  importTemplateLoad: document.getElementById('import-template-load'),
   importMsg: document.getElementById('import-msg'),
   importResult: document.getElementById('import-result'),
   refreshAllBtn: document.getElementById('refresh-all'),
@@ -1038,6 +1040,13 @@ async function addTickers(raw, shares) {
 // ---------- bulk import ----------
 // Some sheets use a company shorthand instead of the exact NSE symbol.
 const IMPORT_ALIASES = { JYOTIRESINS: 'JYOTIRES' };
+const IMPORT_TEMPLATE_ROWS = [
+  ['SHARE NAME', 'Q1 Qty', 'Q2 Qty', 'Q3 Qty', 'Q4 Qty'],
+  ['INFY', '10', '10', '12', '12'],
+  ['ITC', '25', '25', '25', '25'],
+];
+const IMPORT_TEMPLATE_CSV = IMPORT_TEMPLATE_ROWS.map(row => row.join(',')).join('\n');
+const IMPORT_TEMPLATE_PASTE = IMPORT_TEMPLATE_ROWS.map(row => row.join('\t')).join('\n');
 
 function cleanImportCell(value) {
   return String(value === undefined || value === null ? '' : value)
@@ -1088,6 +1097,26 @@ function renderImportYears() {
     ? state.year
     : new Date().getFullYear();
   el.importYear.value = String(years.includes(preferred) ? preferred : years[0]);
+}
+
+function downloadImportTemplate() {
+  const blob = new Blob(['\uFEFF' + IMPORT_TEMPLATE_CSV], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'dividend-tracker-import-template.csv';
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function loadImportTemplateIntoEditor() {
+  el.importText.value = IMPORT_TEMPLATE_PASTE;
+  el.importMsg.textContent = '';
+  el.importResult.innerHTML = '';
+  el.importText.focus();
 }
 
 function openImport() {
@@ -2359,6 +2388,11 @@ el.addForm.addEventListener('submit', e => {
 });
 
 el.emptyState.addEventListener('click', e => {
+  const importBtn = e.target.closest('button[data-empty-import]');
+  if (importBtn) {
+    openImport();
+    return;
+  }
   const btn = e.target.closest('button[data-example]');
   if (!btn) return;
   addTickers(btn.dataset.example, el.addShares.value);
@@ -2388,6 +2422,8 @@ el.importClose.addEventListener('click', closeImport);
 el.importCancel.addEventListener('click', closeImport);
 el.importModal.addEventListener('click', e => { if (e.target === el.importModal) closeImport(); });
 el.importRun.addEventListener('click', runImport);
+if (el.importTemplateDownload) el.importTemplateDownload.addEventListener('click', downloadImportTemplate);
+if (el.importTemplateLoad) el.importTemplateLoad.addEventListener('click', loadImportTemplateIntoEditor);
 el.importFile.addEventListener('change', async () => {
   const file = el.importFile.files && el.importFile.files[0];
   if (!file) return;

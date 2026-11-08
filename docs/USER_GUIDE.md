@@ -129,6 +129,11 @@ code, message, storage status and browser details for troubleshooting.
 
 Click **📥 Import** to load quarterly quantities from a spreadsheet.
 
+Use **⬇ Template CSV** in the import dialog to download a starter file for
+Excel or Google Sheets, or **Load example** to fill the paste box with sample
+rows. The empty portfolio screen also offers **Import many stocks**, which
+opens the same dialog.
+
 ### Format
 
 One row per stock:

@@ -98,7 +98,8 @@
         </li>
       </ol>
       <div class="empty-actions">
-        <span>Try a common stock:</span>
+        <button type="button" class="secondary" data-empty-import title="Open bulk import and download a spreadsheet template">📥 Import many stocks</button>
+        <span>Or try one ticker:</span>
         <button type="button" class="secondary" data-example="RELIANCE">RELIANCE</button>
         <button type="button" class="secondary" data-example="TCS">TCS</button>
         <button type="button" class="secondary" data-example="HDFCBANK">HDFCBANK</button>
@@ -145,9 +146,11 @@
           <label class="import-file-label">CSV file
             <input type="file" id="import-file" accept=".csv,text/csv,text/plain" title="Choose a CSV file with SHARE NAME, Q1, Q2, Q3, Q4">
           </label>
+          <button type="button" class="secondary import-template-btn" id="import-template-download" title="Download a CSV template for Excel or Google Sheets">⬇ Template CSV</button>
+          <button type="button" class="secondary import-template-btn" id="import-template-load" title="Load example rows into the paste box">Load example</button>
         </div>
         <textarea id="import-text" spellcheck="false" placeholder="SHARE NAME&#9;Q1 Qty&#9;Q2 Qty&#9;Q3 Qty&#9;Q4 Qty&#10;INFY&#9;10&#9;10&#9;12&#9;12&#10;ITC&#9;25&#9;25&#9;25&#9;25"></textarea>
-        <div class="import-hint">Copy the range from your spreadsheet and paste it here. Tabs, commas, or spaces are accepted. Rows whose stock is already in the tracker are skipped. Blank quantity cells stay blank.</div>
+        <div class="import-hint">Download <strong>Template CSV</strong> or fill the sheet, then paste or upload. Tabs, commas, or spaces are accepted. Rows whose stock is already in the tracker are skipped. Blank quantity cells stay blank.</div>
         <div id="import-msg" aria-live="polite"></div>
         <div class="import-actions">
           <button id="import-run" title="Add new stocks and save their quarterly quantities">Import</button>

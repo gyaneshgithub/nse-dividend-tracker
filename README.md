@@ -35,7 +35,7 @@ are included in this repository.*
   year highlighted.
 - **Automatic year rollover** — a new calendar year appears on 1 January with
   blank quantities; earlier years are preserved.
-- **Bulk import** from a spreadsheet or CSV: ticker plus Q1–Q4 quantities.
+- **Bulk import** from a spreadsheet or CSV: downloadable template, ticker plus Q1–Q4 quantities.
 - **Income analysis** by year, stock, and quarter, including monthly averages.
 - **Portfolio insight** — a read-only popup that scores dividend health,
   explains concentration and cuts in plain language, and charts income by year
