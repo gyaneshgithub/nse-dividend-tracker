@@ -54,7 +54,7 @@ def test_parse_dividends_without_history_raises_lookup_error():
 def test_get_dividends_caches_and_respects_ttl(monkeypatch):
     calls = []
 
-    def fake_fetch(symbol):
+    def fake_fetch(symbol, page="dividend"):
         calls.append(symbol)
         return HTML
 
@@ -76,11 +76,32 @@ def test_get_dividends_rejects_invalid_symbol():
         market.get_dividends("not a ticker")
 
 
+def test_get_dividends_uses_overview_when_dividend_page_missing(monkeypatch):
+    overview = """
+    <html><head><title>Delhivery (NSE:DELHIVERY) Stock Price</title></head>
+    <body><script>dividend:"n/a",dividendTable:null,"p":428.5,quote:{p:428.5}</script></body></html>
+    """
+
+    def fake_fetch(symbol, page="dividend"):
+        if page == "dividend":
+            import urllib.error
+
+            raise urllib.error.HTTPError("url", 404, "Not Found", None, None)
+        return overview
+
+    monkeypatch.setattr(market, "_fetch_html", fake_fetch)
+    payload = market.get_dividends("DELHIVERY")
+    assert payload["symbol"] == "DELHIVERY"
+    assert payload["name"] == "Delhivery"
+    assert payload["price"] == 428.5
+    assert payload["dividends"] == []
+
+
 def test_get_dividends_tries_dot_slug_when_hyphen_returns_404(monkeypatch):
     calls = []
 
-    def fake_fetch(symbol):
-        calls.append(symbol)
+    def fake_fetch(symbol, page="dividend"):
+        calls.append((symbol, page))
         if symbol == "NAM-INDIA":
             import urllib.error
 
@@ -92,4 +113,4 @@ def test_get_dividends_tries_dot_slug_when_hyphen_returns_404(monkeypatch):
     monkeypatch.setattr(market, "_fetch_html", fake_fetch)
     payload = market.get_dividends("NAM-INDIA")
     assert payload["symbol"] == "NAM-INDIA"
-    assert calls == ["NAM-INDIA", "NAM.INDIA"]
+    assert calls == [("NAM-INDIA", "dividend"), ("NAM.INDIA", "dividend")]

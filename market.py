@@ -14,6 +14,7 @@ import urllib.parse
 import urllib.request
 
 UPSTREAM = "https://stockanalysis.com/quote/nse/{symbol}/dividend/"
+OVERVIEW_UPSTREAM = "https://stockanalysis.com/quote/nse/{symbol}/"
 UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
@@ -45,8 +46,9 @@ def _upstream_candidates(symbol):
             yield key
 
 
-def _fetch_html(symbol):
-    url = UPSTREAM.format(symbol=urllib.parse.quote(symbol))
+def _fetch_html(symbol, page="dividend"):
+    template = UPSTREAM if page == "dividend" else OVERVIEW_UPSTREAM
+    url = template.format(symbol=urllib.parse.quote(symbol))
     request = urllib.request.Request(
         url,
         headers={
@@ -61,21 +63,8 @@ def _fetch_html(symbol):
 
 
 def parse_dividends(symbol, html):
-    # Company name from <title>: "Reliance Industries (NSE:RELIANCE) Dividend History..."
-    name = symbol
-    title = re.search(r"<title>([^<]+)</title>", html)
-    if title:
-        match = re.match(r"(.+?)\s+\(NSE:", title.group(1))
-        if match:
-            name = html_unescape(match.group(1).strip())
-
-    # Current price from embedded quote object: quote:{c:-2.5,...,p:1164.9,...}
-    price = None
-    quote = re.search(r"quote:\{([^}]*)\}", html)
-    if quote:
-        price_match = re.search(r"(?:^|,)\s*p:([0-9.]+)", quote.group(1))
-        if price_match:
-            price = float(price_match.group(1))
+    name = _parse_name_from_title(html, symbol)
+    price = _extract_price(html)
 
     annual = None
     annual_match = re.search(r'annual:"([0-9.,]+)\s*INR"', html)
@@ -105,6 +94,34 @@ def parse_dividends(symbol, html):
     if not dividends:
         raise LookupError("No dividend data found for this ticker")
 
+    return _dividend_payload(symbol, name, price, annual, yield_pct, dividends)
+
+
+def _extract_price(html):
+    price = None
+    quote = re.search(r"quote:\{([^}]*)\}", html)
+    if quote:
+        price_match = re.search(r"(?:^|,)\s*p:([0-9.]+)", quote.group(1))
+        if price_match:
+            price = float(price_match.group(1))
+    if price is None:
+        json_price = re.search(r'"p":([0-9.]+)', html)
+        if json_price:
+            price = float(json_price.group(1))
+    return price
+
+
+def _parse_name_from_title(html, symbol):
+    name = symbol
+    title = re.search(r"<title>([^<]+)</title>", html)
+    if title:
+        match = re.match(r"(.+?)\s+\(NSE:", title.group(1))
+        if match:
+            name = html_unescape(match.group(1).strip())
+    return name
+
+
+def _dividend_payload(symbol, name, price, annual, yield_pct, dividends):
     return {
         "symbol": symbol,
         "name": name,
@@ -117,6 +134,16 @@ def parse_dividends(symbol, html):
     }
 
 
+def parse_quote_without_dividends(symbol, html):
+    """Listed stock with no dividend history page (e.g. DELHIVERY)."""
+    name = _parse_name_from_title(html, symbol)
+    price = _extract_price(html)
+    flagged = 'dividend:"n/a"' in html or "dividendTable:null" in html
+    if not flagged and price is None:
+        raise LookupError("No dividend data found for this ticker")
+    return _dividend_payload(symbol, name, price, None, None, [])
+
+
 def get_dividends(symbol):
     symbol = str(symbol or "").strip().upper()
     if not SYMBOL_RE.fullmatch(symbol):
@@ -126,15 +153,37 @@ def get_dividends(symbol):
     if cached and now - cached[0] < _cache_ttl():
         return cached[1]
     last_error = None
-    for upstream in _upstream_candidates(symbol):
+    candidates = list(_upstream_candidates(symbol))
+    for upstream in candidates:
         try:
-            html = _fetch_html(upstream)
+            html = _fetch_html(upstream, "dividend")
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
                 last_error = exc
                 continue
             raise
-        payload = parse_dividends(symbol, html)
+        try:
+            payload = parse_dividends(symbol, html)
+            _cache[symbol] = (now, payload)
+            return payload
+        except LookupError:
+            continue
+
+    for upstream in candidates:
+        try:
+            overview = _fetch_html(upstream, "overview")
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                last_error = exc
+                continue
+            raise
+        try:
+            payload = parse_dividends(symbol, overview)
+        except LookupError:
+            try:
+                payload = parse_quote_without_dividends(symbol, overview)
+            except LookupError:
+                continue
         _cache[symbol] = (now, payload)
         return payload
     if last_error is not None:
