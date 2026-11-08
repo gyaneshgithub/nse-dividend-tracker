@@ -2,7 +2,7 @@
 const LS_HOLDINGS = 'dividendTracker.holdings.v1';
 const LS_SYNCED = 'dividendTracker.synced.v1';
 
-let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, sortKey: null, sortDir: 'asc', summaryProjections: null };
+let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, coachOpen: false, coachYear: null, coachData: null, sortKey: null, sortDir: 'asc', summaryProjections: null };
 let summaryProjectionToken = 0;
 let refreshing = false;
 const syncTimers = {};
@@ -96,6 +96,14 @@ const el = {
   insightTabs: document.getElementById('insight-tabs'),
   insightBody: document.getElementById('insight-body'),
   insightReload: document.getElementById('insight-reload'),
+  coachBtn: document.getElementById('coach-btn'),
+  coachBadge: document.getElementById('coach-badge'),
+  coachModal: document.getElementById('coach-modal'),
+  coachClose: document.getElementById('coach-close'),
+  coachSub: document.getElementById('coach-sub'),
+  coachYear: document.getElementById('coach-year'),
+  coachBody: document.getElementById('coach-body'),
+  coachReload: document.getElementById('coach-reload'),
 };
 
 // ---------- storage ----------
@@ -1510,6 +1518,7 @@ async function loadAnalysis() {
 
 function openAnalysis() {
   if (state.insightOpen) closeInsight();
+  if (state.coachOpen) closeCoach();
   state.analysisOpen = true;
   populateAnalysisYears();
   el.analysisModal.hidden = false;
@@ -1559,6 +1568,8 @@ function renderSearchResults(results, query) {
 
 const INSIGHT_PALETTE = ['#ff9f0a', '#64d2ff', '#30d158', '#bf5af2', '#ffd60a', '#ff6961', '#5e5ce6', '#8e8e93'];
 let insightRequest = 0;
+let coachRequest = 0;
+let coachBadgeToken = 0;
 
 function insightBandColor(band) {
   return { strong: '#30d158', steady: '#64d2ff', uneven: '#ff9f0a', fragile: '#ff6961' }[band] || '#48484a';
@@ -1924,6 +1935,157 @@ async function loadInsight() {
   }
 }
 
+function renderCoachBadge(counts) {
+  const urgent = counts && counts.p0 ? counts.p0 : 0;
+  if (!el.coachBadge) return;
+  if (urgent > 0) {
+    el.coachBadge.hidden = false;
+    el.coachBadge.textContent = String(urgent);
+    el.coachBadge.title = `${urgent} urgent briefing item${urgent === 1 ? '' : 's'}`;
+  } else {
+    el.coachBadge.hidden = true;
+    el.coachBadge.textContent = '';
+  }
+}
+
+async function refreshCoachBadge() {
+  const year = state.year === null || state.year === 'all' ? 'all' : state.year;
+  const token = ++coachBadgeToken;
+  try {
+    const res = await fetch('/api/coach?year=' + encodeURIComponent(year));
+    const json = await res.json().catch(() => ({}));
+    if (token !== coachBadgeToken) return;
+    if (!res.ok) return;
+    renderCoachBadge(json.counts);
+    if (state.coachOpen && state.coachData) {
+      /* badge only */
+    }
+  } catch (e) {
+    if (token !== coachBadgeToken) return;
+  }
+}
+
+function coachPriorityLabel(priority) {
+  return String(priority || '').toUpperCase();
+}
+
+function renderCoach(data) {
+  state.coachData = data;
+  const generated = new Date(data.generatedAt);
+  const stamp = isNaN(generated.getTime())
+    ? 'just now'
+    : generated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  el.coachSub.textContent =
+    `${data.counts.total} task${data.counts.total === 1 ? '' : 's'} · ` +
+    `${data.yearLabel} · computed at ${stamp} · nothing stored`;
+  renderCoachBadge(data.counts);
+  populateCoachYears();
+  const tasks = data.tasks || [];
+  const taskHtml = tasks.length
+    ? `<ul class="coach-task-list">${tasks.map(task => `
+      <li>
+        <button type="button" class="coach-task" data-coach-action="${esc(task.action || '')}" data-coach-ticker="${esc(task.ticker || '')}" data-coach-quarter="${esc(task.quarter || '')}">
+          <span class="coach-priority ${esc(task.priority || '')}">${esc(coachPriorityLabel(task.priority))}</span>
+          ${esc(task.message)}
+          ${task.ticker ? `<div class="meta">${esc(task.ticker)}${task.quarter ? ' · ' + esc(task.quarter) : ''}</div>` : ''}
+        </button>
+      </li>`).join('')}</ul>`
+    : '<div class="insight-empty">No action items for this period.</div>';
+  const events = (data.events || []).slice(0, 12);
+  const eventsHtml = events.length
+    ? `<div class="insight-subhead">Recent dividend context</div><ul class="coach-events">${events.map(ev => `<li>${esc(ev.message)}</li>`).join('')}</ul>`
+    : '';
+  el.coachBody.innerHTML = `
+    <div class="coach-headline">${esc(data.briefing.headline)}</div>
+    <div class="coach-summary">${esc(data.briefing.summary)}</div>
+    <div class="insight-subhead">Tasks</div>
+    ${taskHtml}
+    ${eventsHtml}
+    <div class="insight-deferred" style="margin-top:14px">${esc(data.disclaimer || '')}</div>`;
+}
+
+function populateCoachYears() {
+  const years = availableYears(true);
+  const selected = state.coachYear === null ? 'all' : String(state.coachYear);
+  el.coachYear.innerHTML =
+    years.map(year => `<option value="${year}">${year}</option>`).join('') +
+    '<option value="all">All years</option>';
+  el.coachYear.value = selected;
+}
+
+async function loadCoach() {
+  const token = ++coachRequest;
+  el.coachBody.innerHTML = '<div class="insight-empty">Building portfolio briefing from local data…</div>';
+  try {
+    const year = state.coachYear === null ? 'all' : state.coachYear;
+    const res = await fetch('/api/coach?year=' + encodeURIComponent(year));
+    const json = await res.json().catch(() => ({}));
+    if (token !== coachRequest) return;
+    if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
+    renderCoach(json);
+  } catch (e) {
+    if (token !== coachRequest) return;
+    el.coachBody.innerHTML = '<div class="analysis-error">Could not load briefing: ' + esc(e.message || e) + '</div>';
+  }
+}
+
+function focusCoachQuarter(ticker, quarterKey) {
+  if (!ticker || !quarterKey) return;
+  const year = parseInt(String(quarterKey).split('-')[0], 10);
+  if (!Number.isNaN(year)) state.year = year;
+  render();
+  closeCoach();
+  requestAnimationFrame(() => {
+    const input = document.querySelector(
+      `input.qty-input[data-ticker="${CSS.escape(ticker)}"][data-quarter="${CSS.escape(quarterKey)}"]`
+    );
+    if (input) {
+      input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      input.focus();
+      input.select();
+    }
+  });
+}
+
+function runCoachAction(button) {
+  const action = button.dataset.coachAction;
+  const ticker = button.dataset.coachTicker;
+  const quarter = button.dataset.coachQuarter;
+  if (action === 'focus-quarter') focusCoachQuarter(ticker, quarter);
+  else if (action === 'refresh' && ticker) {
+    closeCoach();
+    refreshTicker(ticker);
+  } else if (action === 'open-insight') {
+    closeCoach();
+    openInsight();
+  } else if (action === 'open-analysis') {
+    closeCoach();
+    openAnalysis();
+  }
+}
+
+function openCoach() {
+  if (state.analysisOpen) closeAnalysis();
+  if (state.insightOpen) closeInsight();
+  state.coachOpen = true;
+  if (state.coachYear === null) {
+    const years = availableYears(true);
+    if (state.year !== 'all' && state.year !== null && years.includes(state.year)) {
+      state.coachYear = state.year;
+    } else {
+      state.coachYear = years.length ? years[0] : 'all';
+    }
+  }
+  el.coachModal.hidden = false;
+  el.coachClose.focus();
+  loadCoach();
+}
+
+function closeCoach() {
+  state.coachOpen = false;
+  el.coachModal.hidden = true;
+}
+
 function setInsightTab(tab) {
   state.insightTab = tab;
   el.insightTabs.querySelectorAll('.insight-tab').forEach(button => {
@@ -1936,6 +2098,7 @@ function setInsightTab(tab) {
 
 function openInsight() {
   if (state.analysisOpen) closeAnalysis();
+  if (state.coachOpen) closeCoach();
   state.insightOpen = true;
   if (state.insightYear === null) {
     const years = availableYears(true);
@@ -1963,6 +2126,7 @@ function render() {
   renderTable();
   renderHistory();
   loadSummaryProjections();
+  refreshCoachBadge();
 }
 // ---------- events ----------
 el.yearFilter.addEventListener('change', () => {
@@ -2102,6 +2266,21 @@ el.analysisChips.addEventListener('click', e => {
   if (chip) runSearch(chip.dataset.query);
 });
 
+el.coachBtn.addEventListener('click', openCoach);
+el.coachClose.addEventListener('click', closeCoach);
+el.coachModal.addEventListener('click', e => { if (e.target === el.coachModal) closeCoach(); });
+el.coachYear.addEventListener('change', () => {
+  const value = el.coachYear.value;
+  state.coachYear = value === 'all' ? 'all' : Number(value);
+  loadCoach();
+});
+el.coachReload.addEventListener('click', loadCoach);
+el.coachBody.addEventListener('click', e => {
+  const btn = e.target.closest('[data-coach-action]');
+  if (!btn) return;
+  runCoachAction(btn);
+});
+
 el.insightBtn.addEventListener('click', openInsight);
 el.insightClose.addEventListener('click', closeInsight);
 el.insightModal.addEventListener('click', e => { if (e.target === el.insightModal) closeInsight(); });
@@ -2120,6 +2299,7 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (state.historyTicker) closeHistory();
   else if (!el.importModal.hidden) closeImport();
+  else if (state.coachOpen) closeCoach();
   else if (state.insightOpen) closeInsight();
   else if (state.analysisOpen) closeAnalysis();
 });

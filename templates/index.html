@@ -21,6 +21,7 @@
         <button id="clear-year" class="danger" title="Set every saved quarter quantity for the selected year to 0 — use this to remove copied or incorrect data">🧹 Clear year</button>
         <button id="import-btn" title="Bulk-load quarterly quantities from a spreadsheet. Rows whose stock is already in the tracker are skipped.">📥 Import</button>
         <button id="analysis-btn" title="Open portfolio analysis powered by local ChromaDB">📊 Analysis</button>
+        <button id="coach-btn" title="Portfolio briefing: tasks and dividend calendar from local data" class="has-badge">📋 Briefing<span class="header-badge" id="coach-badge" hidden aria-label="Urgent coach items"></span></button>
         <button id="insight-btn" title="Score the portfolio's dividend health from local data. Read-only: nothing is stored or sent anywhere.">🧠 Insight</button>
         <button id="refresh-all" title="Re-fetch live dividend data for all stocks">🔄 Refresh All</button>
       </div>
@@ -187,6 +188,27 @@
           </div>
           <div id="analysis-search-results"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="coach-modal" hidden>
+    <div class="modal wide insight" role="dialog" aria-modal="true" aria-labelledby="coach-title">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title" id="coach-title">📋 Portfolio Briefing</div>
+          <div class="modal-sub" id="coach-sub">Computed locally · action list is never stored</div>
+        </div>
+        <button class="icon-btn modal-close" id="coach-close" title="Close briefing (Esc)" aria-label="Close briefing">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="insight-tabs">
+          <label class="insight-year-label">Year
+            <select id="coach-year" title="Choose the year for tasks and events"></select>
+          </label>
+          <button id="coach-reload" class="insight-reload" title="Recompute the briefing from local data">↻ Recompute</button>
+        </div>
+        <div id="coach-body"></div>
       </div>
     </div>
   </div>

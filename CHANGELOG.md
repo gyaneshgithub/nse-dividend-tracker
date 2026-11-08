@@ -6,6 +6,11 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Portfolio briefing (coach v1).** `coach.py` now emits prioritized tasks
+  (missing quantities, failed or stale fetches, dividend cuts, concentration,
+  scenario spread) and dividend context events. The **Briefing** header button
+  shows an urgent-count badge; the modal supports one-click actions (focus
+  quarter, refresh, open Analysis or Insight).
 - **Next-year income scenarios.** For a selected year, `GET /api/analysis` now
   returns `projections` with conservative, base and growth bands (plus notes).
   `projectedNextYearIncome` remains the base scenario. The dashboard shows Low /

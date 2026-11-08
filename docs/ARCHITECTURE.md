@@ -256,8 +256,8 @@ bumped or mirrored.
 The response contract (stable across releases):
 
 - `briefing` — `headline` and `summary` for the selected period;
-- `tasks` — prioritized action items (empty in the stub ruleset);
-- `events` — upcoming or recent dividend-related items (empty in the stub);
+- `tasks` — prioritized action items (`p0` / `p1` / `p2`);
+- `events` — dividend payouts and payment-pattern hints for the selected period;
 - `counts` — `total`, `p0`, `p1`, `p2` tallies for the task list;
 - `ruleset` — `{ id, version }` so clients know which rule engine produced the payload;
 - `disclaimer` — same descriptive-not-advice wording as insight.

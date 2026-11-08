@@ -144,8 +144,9 @@ def main() -> int:
             check(
                 status == 200
                 and coach_payload.get("briefing")
-                and coach_payload.get("tasks") == []
-                and coach_payload.get("events") == [],
+                and isinstance(coach_payload.get("tasks"), list)
+                and isinstance(coach_payload.get("events"), list)
+                and coach_payload.get("ruleset", {}).get("id") == "v1",
                 "coach briefing responds",
             )
 

@@ -163,6 +163,21 @@ The **Search dividend records** box runs a semantic search over the indexed
 payouts. Try queries such as `TCS 2025`, `Reliance dividends`, `highest
 income`, or `Q2 payouts`. Results show the ticker, date, quantity, and income.
 
+## Portfolio briefing
+
+Click **📋 Briefing** for a read-only action list built from your local data.
+It never calls the network on its own and nothing is written back to storage.
+
+Choose a year (or **All years**) to see:
+
+- a short headline and summary;
+- **tasks** sorted by urgency (**P0** missing quantities and bad refreshes first);
+- recent **dividend context** (payouts and typical payment months).
+
+The red badge on the button counts open **P0** items for the dashboard year.
+Task buttons can jump to a quarter cell, refresh a ticker, or open **Analysis**
+or **Insight**.
+
 ## Portfolio insight
 
 Click **🧠 Insight** for a scored summary of the portfolio's dividend health.
