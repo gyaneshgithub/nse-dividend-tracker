@@ -382,9 +382,27 @@ async function dbSaveHoldingNow(h, quiet) {
     }
     const count = json.storage ? json.storage.holdings : '?';
     const rev = typeof json.revision === 'number' ? json.revision : '?';
+    if (json.holding) {
+      const idx = findIndex(h.ticker);
+      if (idx >= 0) {
+        state.holdings[idx] = normalizeHolding(json.holding);
+        saveHoldings();
+      }
+    }
+    let statusLine = 'Saved in local ChromaDB (' + count + ' holdings · revision ' + rev + ')';
+    if (json.dividendChanges && json.dividendChanges.length) {
+      const bits = json.dividendChanges.map(c => {
+        if (c.type === 'new-payout') return `${h.ticker}: new payout ${c.date}`;
+        return `${h.ticker}: DPS change ${c.date}`;
+      });
+      statusLine = 'Dividend update: ' + bits.join(' · ') + ' · revision ' + rev;
+      el.formMsg.textContent = 'Dividend history updated — ' + bits.join('; ') + '. Check Briefing for follow-up tasks.';
+      el.formMsg.className = 'ok';
+      refreshCoachBadge();
+    }
     syncedTickers.add(h.ticker);
     saveSyncedTickers();
-    setDbStatus('saved', 'DB: saved', 'Saved in local ChromaDB (' + count + ' holdings · revision ' + rev + ')');
+    setDbStatus('saved', 'DB: saved', statusLine);
     return true;
   } catch (e) {
     setDbStatus('error', 'DB: local only', 'ChromaDB write failed: ' + (e.message || e) + '. Data is still saved in this browser.');
@@ -660,6 +678,7 @@ function normalizeHolding(h) {
   h.quarters = h.quarters || {};
   h.quarterUpdatedAt = h.quarterUpdatedAt || {};
   h.reconcile = h.reconcile || {};
+  h.dividendAlerts = h.dividendAlerts || [];
   h.shares = Math.max(0, Number(h.shares) || 1);
   const divs = [...(h.dividends || [])].sort((a, b) => String(a.date).localeCompare(String(b.date)));
   // Do NOT invent quantities for missing quarters or new years. A
@@ -2359,10 +2378,10 @@ function renderCoach(data) {
   const taskHtml = tasks.length
     ? `<ul class="coach-task-list">${tasks.map(task => `
       <li>
-        <button type="button" class="coach-task" data-coach-action="${esc(task.action || '')}" data-coach-ticker="${esc(task.ticker || '')}" data-coach-quarter="${esc(task.quarter || '')}" data-coach-year="${esc(task.year != null ? task.year : '')}">
+        <button type="button" class="coach-task" data-coach-action="${esc(task.action || '')}" data-coach-ticker="${esc(task.ticker || '')}" data-coach-quarter="${esc(task.quarter || '')}" data-coach-year="${esc(task.year != null ? task.year : '')}" data-coach-alert-id="${esc((task.context && task.context.alertId) || '')}">
           <span class="coach-priority ${esc(task.priority || '')}">${esc(coachPriorityLabel(task.priority))}</span>
           ${esc(task.message)}
-          ${task.ticker ? `<div class="meta">${esc(task.ticker)}${task.quarter ? ' · ' + esc(task.quarter) : ''}</div>` : ''}
+          ${task.ticker ? `<div class="meta">${esc(task.ticker)}${task.quarter ? ' · ' + esc(task.quarter) : ''}${task.context && task.context.alertId ? ' · <span class="coach-dismiss-link" data-coach-action="dismiss-dividend-alert" data-coach-ticker="' + esc(task.ticker || '') + '" data-coach-alert-id="' + esc(task.context.alertId) + '">Dismiss</span>' : ''}</div>` : ''}
         </button>
       </li>`).join('')}</ul>`
     : '<div class="insight-empty">No action items for this period.</div>';
@@ -2574,7 +2593,25 @@ function runCoachAction(button) {
     downloadCalendarIcs();
   } else if (action === 'apply-autofill' && ticker) {
     applyAutofill(ticker, yearKey || new Date().getFullYear());
+  } else if (action === 'dismiss-dividend-alert' && ticker) {
+    dismissDividendAlert(ticker, button.dataset.coachAlertId);
   }
+}
+
+async function dismissDividendAlert(ticker, alertId) {
+  if (!alertId) return;
+  const h = getHolding(ticker);
+  if (!h) return;
+  const stamp = new Date().toISOString();
+  h.dividendAlerts = (h.dividendAlerts || []).map(alert =>
+    alert.id === alertId ? { ...alert, dismissed: true, updatedAt: stamp } : alert
+  );
+  touch(h);
+  persist();
+  render();
+  await dbSaveHolding(h, true);
+  if (state.coachOpen) loadCoach();
+  else refreshCoachBadge();
 }
 
 async function applyAutofill(ticker, year) {

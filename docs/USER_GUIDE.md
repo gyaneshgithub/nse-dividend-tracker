@@ -150,6 +150,10 @@ sort last.
 Upstream responses are cached for six hours by default. Change
 `DIVIDEND_CACHE_TTL` in `.env` if you need fresher data. Refreshing updates
 names, prices, and dividend history; it does not overwrite your quantities.
+When history changes (a new payout row or a revised amount per share), the save
+response records **`dividendAlerts`** on the holding and shows a short message
+on the dashboard. Open **📋 Briefing** for follow-up tasks (confirm the quarter
+quantity or review Insight); use **Dismiss** on a task when you are done.
 
 If a fetch fails, an error banner explains whether the problem is the ticker,
 a missing dividend history, the network, rate limiting, or the upstream site.
@@ -223,8 +227,10 @@ Choose a year (or **All years**) to see:
 - recent **dividend context** (payouts and typical payment months).
 
 The red badge on the button counts open **P0** items for the dashboard year.
-Task buttons can jump to a quarter cell, refresh a ticker, or open **Analysis**
-or **Insight**.
+Task buttons can jump to a quarter cell, refresh a ticker, open **Analysis**
+or **Insight**, or **Dismiss** a dividend refresh alert. After a successful
+refresh that changed payout history, briefing may list **new-payout** or
+**dps-change** items for the selected year.
 
 ## Portfolio insight
 

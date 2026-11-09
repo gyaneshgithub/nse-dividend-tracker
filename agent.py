@@ -538,6 +538,131 @@ def calendar_block_tasks(holdings, year_value) -> list:
     return tasks
 
 
+def _dividend_amount_map(dividends) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for div in dividends or []:
+        date = str(div.get("date") or "")
+        if len(date) < 10:
+            continue
+        try:
+            out[date] = round(float(div.get("amount") or 0), 4)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def dividend_refresh_diff(old_dividends, new_dividends) -> list:
+    """Detect new ex-dates and per-share amount changes after a refresh."""
+    old = _dividend_amount_map(old_dividends)
+    new = _dividend_amount_map(new_dividends)
+    if not new:
+        return []
+    changes = []
+    for date in sorted(new.keys()):
+        amount = new[date]
+        if amount <= 0:
+            continue
+        if date not in old:
+            changes.append({"type": "new-payout", "date": date, "amount": amount})
+            continue
+        prev = old[date]
+        if abs(prev - amount) > 0.001:
+            changes.append(
+                {
+                    "type": "dps-change",
+                    "date": date,
+                    "amount": amount,
+                    "previous": prev,
+                }
+            )
+    return changes
+
+
+def _alert_message(ticker: str, change: dict) -> str:
+    if change["type"] == "new-payout":
+        return (
+            f"New payout on {ticker}: ₹{change['amount']:.2f}/share on {change['date']} — "
+            "confirm the quarter quantity."
+        )
+    prev = float(change.get("previous") or 0)
+    amount = float(change.get("amount") or 0)
+    drop = ((amount - prev) / prev * 100.0) if prev > 0 else 0.0
+    return (
+        f"{ticker} dividend on {change['date']} changed to ₹{amount:.2f}/share "
+        f"(was ₹{prev:.2f}, {drop:+.1f}%)."
+    )
+
+
+def apply_dividend_alerts(holding: dict, changes: list, prior_alerts: list | None = None) -> dict:
+    if not changes:
+        return holding
+    merged = dict(holding)
+    alerts = list(prior_alerts or merged.get("dividendAlerts") or [])
+    seen = {str(a.get("id") or "") for a in alerts}
+    now = datetime.now(timezone.utc).isoformat()
+    ticker = merged.get("ticker") or "?"
+    for change in changes:
+        alert_id = f"{change['type']}:{ticker}:{change['date']}"
+        if alert_id in seen:
+            for alert in alerts:
+                if alert.get("id") == alert_id:
+                    alert["dismissed"] = False
+                    alert["message"] = _alert_message(ticker, change)
+                    alert["amount"] = change.get("amount")
+                    alert["previousAmount"] = change.get("previous")
+                    alert["updatedAt"] = now
+            continue
+        alerts.insert(
+            0,
+            {
+                "id": alert_id,
+                "type": change["type"],
+                "ticker": ticker,
+                "date": change["date"],
+                "amount": change.get("amount"),
+                "previousAmount": change.get("previous"),
+                "message": _alert_message(ticker, change),
+                "createdAt": now,
+                "updatedAt": now,
+                "dismissed": False,
+            },
+        )
+        seen.add(alert_id)
+    merged["dividendAlerts"] = alerts[:40]
+    return merged
+
+
+def refresh_diff_tasks(holdings, year_value=None) -> list:
+    from coach import _dividend_in_coach_year
+
+    tasks = []
+    for holding in holdings:
+        ticker = holding.get("ticker") or "?"
+        for alert in holding.get("dividendAlerts") or []:
+            if alert.get("dismissed"):
+                continue
+            date = str(alert.get("date") or "")
+            if year_value is not None and date and not _dividend_in_coach_year(date, year_value):
+                continue
+            priority = "p1" if alert.get("type") == "new-payout" else "p2"
+            quarter = db.quarter_key(date) if len(date) >= 7 else None
+            action = "focus-quarter" if alert.get("type") == "new-payout" else "open-insight"
+            tasks.append(
+                {
+                    "id": f"alert:{alert.get('id') or ticker}",
+                    "priority": priority,
+                    "type": str(alert.get("type") or "dividend-alert"),
+                    "ticker": ticker,
+                    "date": date,
+                    "quarter": quarter,
+                    "message": str(alert.get("message") or ""),
+                    "action": action,
+                    "context": {"alertId": alert.get("id")},
+                }
+            )
+    return tasks
+
+
 def calendar_ics(holdings, year_value) -> str:
     events = upcoming_calendar_events(holdings, year_value)
     target_year = int(year_value) if year_value is not None else datetime.now(timezone.utc).year

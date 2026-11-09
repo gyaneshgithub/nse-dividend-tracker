@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import agent
+import coach
 
 
 def test_reconcile_gap_task(db):
@@ -86,3 +87,47 @@ def test_tax_playbook_fy(db):
     pack = agent.tax_playbook("fy:2025")
     assert pack["totalIncome"] == 20.0
     assert pack["copyText"]
+
+
+def test_dividend_refresh_diff_detects_new_and_change():
+    old = [{"date": "2025-01-15", "amount": 5.0}]
+    new = [
+        {"date": "2025-01-15", "amount": 6.0},
+        {"date": "2026-02-01", "amount": 4.0},
+    ]
+    changes = agent.dividend_refresh_diff(old, new)
+    types = {c["type"] for c in changes}
+    assert "dps-change" in types
+    assert "new-payout" in types
+
+
+def test_save_holding_records_dividend_alerts_and_coach_task(db):
+    db.save_holding(
+        {
+            "ticker": "INFY",
+            "name": "Infosys",
+            "shares": 10,
+            "quarters": {"2026-Q1": 10},
+            "dividends": [{"date": "2026-01-15", "amount": 12.0}],
+            "status": "ok",
+            "updatedAt": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    db.save_holding(
+        {
+            "ticker": "INFY",
+            "name": "Infosys",
+            "shares": 10,
+            "quarters": {"2026-Q1": 10},
+            "dividends": [
+                {"date": "2026-01-15", "amount": 12.0},
+                {"date": "2026-06-01", "amount": 14.0},
+            ],
+            "status": "ok",
+            "updatedAt": "2026-06-02T00:00:00+00:00",
+        }
+    )
+    holding = db.load_holdings()[0]
+    assert any(a.get("type") == "new-payout" for a in holding.get("dividendAlerts") or [])
+    tasks = coach.build("2026")["tasks"]
+    assert any(t.get("type") == "new-payout" and t.get("ticker") == "INFY" for t in tasks)

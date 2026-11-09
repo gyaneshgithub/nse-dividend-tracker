@@ -189,6 +189,57 @@ def _year_totals(dividends):
 RECONCILE_KEY_RE = re.compile(r"^(?:fy:\d{4}|\d{4})$")
 
 
+def _normalize_dividend_alerts(raw):
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        alert_id = str(item.get("id") or "").strip()[:120]
+        if not alert_id:
+            continue
+        date = str(item.get("date") or "")[:10]
+        amount = item.get("amount")
+        prev_amt = item.get("previousAmount")
+        try:
+            amount = round(float(amount), 4) if amount is not None else None
+        except (TypeError, ValueError):
+            amount = None
+        try:
+            prev_amt = round(float(prev_amt), 4) if prev_amt is not None else None
+        except (TypeError, ValueError):
+            prev_amt = None
+        out.append(
+            {
+                "id": alert_id,
+                "type": str(item.get("type") or "")[:40],
+                "ticker": str(item.get("ticker") or "")[:20],
+                "date": date,
+                "amount": amount,
+                "previousAmount": prev_amt,
+                "message": str(item.get("message") or "")[:500],
+                "createdAt": str(item.get("createdAt") or "")[:40] or None,
+                "updatedAt": str(item.get("updatedAt") or "")[:40] or None,
+                "dismissed": bool(item.get("dismissed")),
+            }
+        )
+    return out[:40]
+
+
+def _merge_dividend_alerts(existing, incoming):
+    merged = {}
+    for alert in (existing or []) + (incoming or []):
+        alert_id = alert.get("id")
+        if not alert_id:
+            continue
+        prev = merged.get(alert_id)
+        if not prev or _parse_time(alert.get("updatedAt")) >= _parse_time(prev.get("updatedAt")):
+            merged[alert_id] = alert
+    ordered = sorted(merged.values(), key=lambda a: _parse_time(a.get("updatedAt")), reverse=True)
+    return ordered[:40]
+
+
 def _normalize_reconcile(raw):
     if not isinstance(raw, dict):
         return {}
@@ -262,6 +313,7 @@ def normalize_holding(raw):
         "lastFetched": str(raw.get("lastFetched") or "")[:40] or None,
         "priceHistory": _normalize_price_history(raw.get("priceHistory")),
         "reconcile": _normalize_reconcile(raw.get("reconcile")),
+        "dividendAlerts": _normalize_dividend_alerts(raw.get("dividendAlerts")),
         "updatedAt": str(raw.get("updatedAt") or "")[:40]
         or datetime.now(timezone.utc).isoformat(),
     }
@@ -354,6 +406,10 @@ def _merge_holding(existing, incoming):
         if picked:
             reconcile[rk] = picked
     merged["reconcile"] = reconcile
+    merged["dividendAlerts"] = _merge_dividend_alerts(
+        existing.get("dividendAlerts"),
+        incoming.get("dividendAlerts"),
+    )
 
     longer = existing.get("priceHistory") or []
     if len((incoming.get("priceHistory") or [])) > len(longer):
@@ -561,6 +617,10 @@ def _holding_metadata(h):
             h.get("reconcile") or {},
             separators=(",", ":"),
         ),
+        "dividend_alerts_json": json.dumps(
+            h.get("dividendAlerts") or [],
+            separators=(",", ":"),
+        ),
     }
 
 
@@ -659,9 +719,26 @@ def save_holding(raw):
             _write_tombstones_locked(tombstones)
         existing = _load_holding_locked(incoming["ticker"])
         merged = _merge_holding(existing, incoming) if existing else incoming
+        dividend_changes = []
+        if existing:
+            import agent
+
+            dividend_changes = agent.dividend_refresh_diff(
+                existing.get("dividends"),
+                merged.get("dividends"),
+            )
+            if dividend_changes:
+                merged = agent.apply_dividend_alerts(
+                    merged,
+                    dividend_changes,
+                    merged.get("dividendAlerts"),
+                )
         if merged.get("lastFetched") and merged.get("price"):
             merged["priceHistory"] = _record_price_snapshot(merged)
-        return _save_holding_locked(merged)
+        saved = _save_holding_locked(merged)
+        if dividend_changes:
+            return {**saved, "dividendChanges": dividend_changes}
+        return saved
 
 
 def import_holdings(items):
@@ -732,6 +809,9 @@ def _holding_from_metadata(meta):
         "lastFetched": meta.get("last_fetched") or None,
         "priceHistory": _normalize_price_history(json.loads(meta.get("price_history_json") or "[]")),
         "reconcile": _normalize_reconcile(json.loads(meta.get("reconcile_json") or "{}")),
+        "dividendAlerts": _normalize_dividend_alerts(
+            json.loads(meta.get("dividend_alerts_json") or "[]")
+        ),
         "updatedAt": meta.get("updated_at") or None,
     }
 

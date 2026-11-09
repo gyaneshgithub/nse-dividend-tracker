@@ -290,9 +290,16 @@ Each task, when populated, uses:
 }
 ```
 
-`action` is a UI hint (`focus-quarter`, `refresh`, `open-insight`, …), not a
-server-side command. Events use `{ "id", "type", "ticker", "message", "at" }`
-with ISO-8601 timestamps where applicable.
+`action` is a UI hint (`focus-quarter`, `refresh`, `open-insight`,
+`dismiss-dividend-alert`, …), not a server-side command. Events use
+`{ "id", "type", "ticker", "message", "at" }` with ISO-8601 timestamps where
+applicable.
+
+On `PUT /api/portfolio/<ticker>`, when merged dividends differ from the stored
+copy, `agent.dividend_refresh_diff` runs before write: alerts are persisted on
+the holding as `dividendAlerts`, and the response may include
+`dividendChanges` (ephemeral). Coach task type `new-payout` / `dps-change` is
+derived from non-dismissed alerts (`agent.refresh_diff_tasks`).
 
 ## Search
 

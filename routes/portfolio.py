@@ -63,14 +63,16 @@ def api_save_holding(ticker):
                     "storage": info,
                 }
             )
-        return jsonify(
-            {
-                "ok": True,
-                "holding": saved,
-                "revision": info.get("revision", 0),
-                "storage": info,
-            }
-        )
+        dividend_changes = saved.pop("dividendChanges", None) if isinstance(saved, dict) else None
+        payload = {
+            "ok": True,
+            "holding": saved,
+            "revision": info.get("revision", 0),
+            "storage": info,
+        }
+        if dividend_changes:
+            payload["dividendChanges"] = dividend_changes
+        return jsonify(payload)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:

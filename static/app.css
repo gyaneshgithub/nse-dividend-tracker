@@ -40,6 +40,8 @@ button.danger:disabled { opacity: 0.4; cursor: default; }
 .coach-task { width: 100%; text-align: left; background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 12px; padding: 10px 12px; color: #f2f2f7; cursor: pointer; }
 .coach-task:hover { border-color: #5e5ce6; }
 .coach-task .meta { color: #8e8e93; font-size: 11px; margin-top: 4px; }
+.coach-dismiss-link { color: #98989d; text-decoration: underline; cursor: pointer; }
+.coach-dismiss-link:hover { color: #d1d1d6; }
 .coach-priority { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; border-radius: 6px; padding: 2px 6px; margin-right: 6px; }
 .coach-priority.p0 { background: rgba(255, 105, 97, 0.2); color: #ff6961; }
 .coach-priority.p1 { background: rgba(255, 159, 10, 0.18); color: #ff9f0a; }
