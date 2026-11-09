@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 import agent
 import db
+import forecast
 import insight
 from insight import DISCLAIMER, _holding_insight
 
@@ -331,6 +332,9 @@ def build(year="all"):
     tasks.extend(_scenario_spread_task(result.get("projections")))
     tasks.extend(agent.reconcile_tasks(holdings, year_value))
     tasks.extend(agent.calendar_block_tasks(holdings, year_value if isinstance(year_value, int) else None))
+    current_year = datetime.now(timezone.utc).year
+    if isinstance(year_value, int) and year_value == current_year:
+        tasks.extend(forecast.autofill_plan(holdings, year_value).get("tasks") or [])
     tasks = _sort_tasks(tasks)
     tasks.extend(agent.export_readiness_tasks(holdings, year_value, tasks))
     if isinstance(year_value, str) and str(year_value).startswith("fy:"):
@@ -342,14 +346,28 @@ def build(year="all"):
     events.extend(agent.upcoming_calendar_events(holdings, cal_year))
     counts = _task_counts(tasks)
 
+    cashflow = forecast.build(12) if holdings else None
+    briefing = _briefing(len(holdings), year_label, counts)
+    if cashflow:
+        base_total = (cashflow.get("scenarios") or {}).get("base", {}).get("total")
+        if base_total:
+            briefing = {
+                **briefing,
+                "summary": (
+                    briefing["summary"]
+                    + f" Rolling 12-month cashflow estimate (base): ₹{base_total:,.0f}."
+                ),
+            }
+
     return {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "year": "all" if year_value is None else year_value,
         "yearLabel": year_label,
         "ruleset": {"id": RULESET, "version": RULESET_VERSION},
-        "briefing": _briefing(len(holdings), year_label, counts),
+        "briefing": briefing,
         "tasks": tasks,
         "events": events,
         "counts": counts,
+        "forecast": cashflow,
         "disclaimer": DISCLAIMER,
     }

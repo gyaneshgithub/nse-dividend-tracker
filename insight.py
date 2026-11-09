@@ -23,6 +23,7 @@ import statistics
 from datetime import datetime, timezone
 
 import db
+import forecast
 from db import _yield_pct
 
 # Weights for the components that can be computed offline today. When the
@@ -390,6 +391,15 @@ def _narrative(year_label, stats, rows, concentration, cuts, holdings_count):
             summary += f", a change of {stats['projectedIncreasePct']:+.1f}%."
         else:
             summary += "."
+    if stats.get("forwardCashflow12m") is not None:
+        summary += (
+            f" The rolling 12-month cashflow outlook (base scenario) is about "
+            f"{_inr(stats['forwardCashflow12m'])}"
+        )
+        if stats.get("forwardCashflowMonthly") is not None:
+            summary += f", roughly {_inr(stats['forwardCashflowMonthly'])} per month on average."
+        else:
+            summary += "."
 
     stable = [row for row in rows if (row["stability"] or 0) >= 70]
     if stable:
@@ -574,9 +584,19 @@ def build(year="all"):
     ]
     cuts.sort(key=lambda cut: (cut["year"], cut["ticker"]), reverse=True)
 
+    forward = forecast.build(12) if rows else None
+    forward_base = None
+    forward_avg = None
+    if forward:
+        base = (forward.get("scenarios") or {}).get("base") or {}
+        forward_base = base.get("total")
+        forward_avg = base.get("avgMonthly")
+
     stats = {
         "holdings": len(rows),
         "totalIncome": total_income,
+        "forwardCashflow12m": forward_base,
+        "forwardCashflowMonthly": forward_avg,
         "payouts": int(result.get("totalPayouts") or 0),
         "avgYieldPct": result.get("avgYieldPct"),
         "projectedNextYearIncome": result.get("projectedNextYearIncome"),

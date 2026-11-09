@@ -165,6 +165,14 @@ def main() -> int:
             status, body = request(port, "GET", "/api/agent/tax?year=fy:2026")
             check(status == 200 and "copyText" in json.loads(body), "tax playbook responds")
 
+            status, body = request(port, "GET", "/api/forecast?months=6")
+            forecast_payload = json.loads(body)
+            check(
+                status == 200
+                and forecast_payload.get("scenarios", {}).get("base", {}).get("byMonth") is not None,
+                "cashflow forecast responds",
+            )
+
             status, body = request(port, "DELETE", "/api/portfolio/SMOKE")
             check(status == 200, "delete holding")
 

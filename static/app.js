@@ -4,6 +4,7 @@ const LS_SYNCED = 'dividendTracker.synced.v1';
 
 let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, coachOpen: false, coachYear: null, coachData: null, sortKey: null, sortDir: 'asc', summaryProjections: null, summaryAnalysis: null, importPlan: null, reconcileTicker: null, reconcileYear: null, reconcileComputed: null };
 let summaryProjectionToken = 0;
+let summaryForecastToken = 0;
 let refreshing = false;
 const syncTimers = {};
 const pendingDefaults = {};
@@ -39,6 +40,8 @@ const el = {
   projectionCard: document.getElementById('projection-card'),
   sumProjected: document.getElementById('sum-projected'),
   sumProjectedDelta: document.getElementById('sum-projected-delta'),
+  sumForecast: document.getElementById('sum-forecast'),
+  sumForecastDelta: document.getElementById('sum-forecast-delta'),
   projectionScenarios: document.getElementById('projection-scenarios'),
   sumMonthly: document.getElementById('sum-monthly'),
   sumMonthlyLabel: document.getElementById('sum-monthly-label'),
@@ -853,6 +856,26 @@ function dpsSparkline(trend) {
     return `<span style="height:${h}px" title="${p.year}: ₹${Number(p.amount).toFixed(2)}/sh"></span>`;
   }).join('');
   return `<span class="dps-spark" aria-hidden="true">${bars}</span>`;
+}
+
+async function loadSummaryForecast() {
+  const token = ++summaryForecastToken;
+  if (!el.sumForecast) return;
+  try {
+    const res = await fetch('/api/forecast?months=12');
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
+    if (token !== summaryForecastToken) return;
+    const base = (json.scenarios || {}).base || {};
+    el.sumForecast.textContent = fmtMoney(base.total || 0);
+    el.sumForecastDelta.textContent = base.avgMonthly
+      ? `~${fmtMoney(base.avgMonthly)}/month · automated from payout history`
+      : '';
+  } catch (e) {
+    if (token !== summaryForecastToken) return;
+    el.sumForecast.textContent = '—';
+    el.sumForecastDelta.textContent = '';
+  }
 }
 
 async function loadSummaryProjections() {
@@ -1702,7 +1725,7 @@ function analysisBar(label, value, max, valueText, title) {
   </div>`;
 }
 
-function renderAnalysis(data) {
+function renderAnalysis(data, forecast) {
   const yearLabel = data.year === 'all' ? 'All years' : String(data.year);
   el.analysisSub.textContent =
     `ChromaDB · ${data.holdingsCount} holding${data.holdingsCount === 1 ? '' : 's'} · ` +
@@ -1777,6 +1800,7 @@ function renderAnalysis(data) {
       <div class="analysis-card"><div class="label">Avg. yield (TTM)</div><div class="value green">${fmtPct(data.avgYieldPct)}</div></div>
       <div class="analysis-card"><div class="label">Holdings</div><div class="value">${data.holdingsCount}</div></div>
     </div>
+    ${renderForecastSection(forecast)}
     ${cashRows}
     ${bridgeRows}
     ${projectionRows}
@@ -1787,14 +1811,41 @@ function renderAnalysis(data) {
   `;
 }
 
+function renderForecastSection(forecast) {
+  if (!forecast || !forecast.scenarios) return '';
+  const maxMonth = Math.max(
+    ...((forecast.scenarios.base || {}).byMonth || []).map(r => r.income),
+    0.0001
+  );
+  const rows = (forecast.scenarios.base || {}).byMonth || [];
+  const conserv = forecast.scenarios.conservative || {};
+  const growth = forecast.scenarios.growth || {};
+  return `
+    <div class="analysis-section">
+      <h3>Forward cashflow · next ${forecast.horizonMonths || 12} months</h3>
+      <div class="analysis-grid">
+        <div class="analysis-card"><div class="label">Conservative</div><div class="value">${fmtMoney(conserv.total)}</div></div>
+        <div class="analysis-card"><div class="label">Base</div><div class="value blue">${fmtMoney((forecast.scenarios.base || {}).total)}</div></div>
+        <div class="analysis-card"><div class="label">Growth</div><div class="value green">${fmtMoney(growth.total)}</div></div>
+      </div>
+      <div class="meta" style="margin-top:8px">${(forecast.assumptions || []).map(a => esc(a)).join(' ')}</div>
+      ${rows.length ? rows.map(row => analysisBar(row.month, row.income, maxMonth,
+        fmtMoney(row.income), `${row.payouts} expected · ${esc((row.tickers || []).slice(0, 4).join(', '))}`)).join('') : ''}
+    </div>`;
+}
+
 async function loadAnalysis() {
   el.analysisBody.innerHTML = '<div class="analysis-empty">Loading analysis from ChromaDB…</div>';
   try {
     const year = state.analysisYear === null ? 'all' : state.analysisYear;
-    const res = await fetch('/api/analysis?year=' + analysisYearParam(year));
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
-    renderAnalysis(json);
+    const [analysisRes, forecastRes] = await Promise.all([
+      fetch('/api/analysis?year=' + analysisYearParam(year)),
+      fetch('/api/forecast?months=12'),
+    ]);
+    const json = await analysisRes.json().catch(() => ({}));
+    const forecast = await forecastRes.json().catch(() => ({}));
+    if (!analysisRes.ok) throw new Error(json.error || ('HTTP ' + analysisRes.status));
+    renderAnalysis(json, forecastRes.ok ? forecast : null);
   } catch (e) {
     el.analysisBody.innerHTML = '<div class="analysis-error">Could not load analysis: ' + esc(e.message || e) + '</div>';
   }
@@ -2282,9 +2333,15 @@ function renderCoach(data) {
   const eventsHtml = events.length
     ? `<div class="insight-subhead">Recent dividend context</div><ul class="coach-events">${events.map(ev => `<li>${esc(ev.message)}</li>`).join('')}</ul>`
     : '';
+  const fc = data.forecast;
+  const forecastHtml = fc && fc.scenarios && fc.scenarios.base
+    ? `<div class="insight-subhead">12-month cashflow outlook</div>
+       <div class="meta">Base ${fmtMoney(fc.scenarios.base.total)} · Conservative ${fmtMoney(fc.scenarios.conservative.total)} · Growth ${fmtMoney(fc.scenarios.growth.total)}</div>`
+    : '';
   el.coachBody.innerHTML = `
     <div class="coach-headline">${esc(data.briefing.headline)}</div>
     <div class="coach-summary">${esc(data.briefing.summary)}</div>
+    ${forecastHtml}
     <div class="insight-subhead">Tasks</div>
     ${taskHtml}
     ${eventsHtml}
@@ -2478,6 +2535,36 @@ function runCoachAction(button) {
     runExport(yearKey || state.coachYear || state.year);
   } else if (action === 'download-calendar') {
     downloadCalendarIcs();
+  } else if (action === 'apply-autofill' && ticker) {
+    applyAutofill(ticker, yearKey || new Date().getFullYear());
+  }
+}
+
+async function applyAutofill(ticker, year) {
+  try {
+    const res = await fetch('/api/agent/autofill/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year: Number(year), tickers: [ticker] }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
+    for (const h of json.holdings || []) {
+      const idx = findIndex(h.ticker);
+      const norm = normalizeHolding(h);
+      if (idx >= 0) state.holdings[idx] = norm;
+    }
+    persist();
+    await fetchPortfolio();
+    refreshCoachBadge();
+    if (state.coachOpen) loadCoach();
+    loadSummaryForecast();
+    render();
+    el.formMsg.textContent = `Filled blank quarters for ${ticker} in ${year} from prior-year quantities.`;
+    el.formMsg.className = 'ok';
+  } catch (e) {
+    el.formMsg.textContent = 'Autofill failed: ' + (e.message || e);
+    el.formMsg.className = 'err';
   }
 }
 
@@ -2543,6 +2630,7 @@ function render() {
   renderTable();
   renderHistory();
   loadSummaryProjections();
+  loadSummaryForecast();
   refreshCoachBadge();
 }
 // ---------- events ----------
