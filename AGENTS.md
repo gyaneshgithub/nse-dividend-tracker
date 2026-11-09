@@ -30,7 +30,9 @@ A local-first NSE dividend tracker:
 Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before changing storage or
 concurrency behavior. The **Portfolio agents** table there lists `agent.py` and
 `forecast.py` capabilities (reconcile, import, refresh diff, attribution,
-stress, autofill).
+stress, autofill). End-user value and workflows live in
+[docs/PORTFOLIO_AGENTS.md](docs/PORTFOLIO_AGENTS.md) — keep that file in sync
+when adding or renaming agent-facing behavior.
 
 ## Commands
 

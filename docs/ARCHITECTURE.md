@@ -262,6 +262,9 @@ rather than scored as zero.
 
 ## Portfolio agents (`agent.py` + `forecast.py`)
 
+End-user overview: [PORTFOLIO_AGENTS.md](PORTFOLIO_AGENTS.md). This section is
+for implementers.
+
 Deterministic helpers (no LLM, no network in coach paths). Coach and API routes
 call them; most only emit tasks or exports.
 

@@ -26,6 +26,7 @@ DOC_FILES = [
     ROOT / "docs" / "CHROMADB.md",
     ROOT / "docs" / "SETUP.md",
     ROOT / "docs" / "USER_GUIDE.md",
+    ROOT / "docs" / "PORTFOLIO_AGENTS.md",
 ]
 
 # Feature names that must stay in the README's feature list. Update this list

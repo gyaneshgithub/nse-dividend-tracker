@@ -6,6 +6,8 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Portfolio agents user guide.** [docs/PORTFOLIO_AGENTS.md](docs/PORTFOLIO_AGENTS.md)
+  explains each Briefing helper, workflows, and privacy for non-technical users.
 - **Cashflow stress agent.** `forecast.stress_report` compares 12-month base vs
   conservative scenarios and explicit −10% quantity/DPS shocks. Briefing adds
   `cashflow-stress` tasks when gaps exceed thresholds; summary may note severe

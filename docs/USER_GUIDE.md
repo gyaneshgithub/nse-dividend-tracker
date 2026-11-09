@@ -222,6 +222,10 @@ income`, or `Q2 payouts`. Results show the ticker, date, quantity, and income.
 Click **📋 Briefing** for a read-only action list built from your local data.
 It never calls the network on its own and nothing is written back to storage.
 
+For a full explanation of what each automated helper does and why it matters, see
+**[Portfolio agents](PORTFOLIO_AGENTS.md)** (deterministic local “agents” — not
+an LLM chatbot).
+
 Choose a year (or **All years**) to see:
 
 - a short headline and summary;
@@ -237,22 +241,10 @@ may also show **income-attribution** tasks that explain whether a stock's
 year-on-year income move came mainly from quantities, dividend per share, or new
 payouts.
 
-**Agent-backed tasks** (all read-only except actions you take in the UI):
-
-| Task type | Meaning | Typical action |
-| --- | --- | --- |
-| Missing / stale fetch | Quantities blank or dividend data old/failed | Focus quarter or refresh |
-| Reconcile gap | Bank actual ≠ computed income | Open reconcile |
-| `new-payout` / `dps-change` | History changed on refresh | Focus quarter or Dismiss |
-| `income-attribution` | YoY income driver for a calendar year | Focus quarter or Insight |
-| `cashflow-stress` | Base 12-month forecast much higher than conservative or a −10% stress | Analysis or Insight |
-| Autofill / export / tax | Blanks to fill, export blocked, FY checklist | Apply autofill, export, tax pack |
-
 Briefing also shows a **12-month cashflow outlook** (base / conservative /
-growth). When base and conservative diverge by roughly 10% or more, or a
-combined −10% quantity and −10% DPS stress cuts forecast cash materially,
-**cashflow-stress** tasks appear so you can sanity-check peak quantities and DPS
-assumptions in **Analysis**.
+growth). Task types (`reconcile-gap`, `new-payout`, `income-attribution`,
+`cashflow-stress`, and others) are described in
+**[Portfolio agents](PORTFOLIO_AGENTS.md)**.
 
 ## Portfolio insight
 

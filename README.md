@@ -50,7 +50,8 @@ are included in this repository.*
   missing quantities, failed or stale fetches, dividend cuts, concentration and
   scenario spread, reconcile gaps, refresh-diff alerts, YoY income attribution,
   cashflow stress warnings, export/FY tax and autofill hints, with one-click
-  actions.
+  actions. See [Portfolio agents](docs/PORTFOLIO_AGENTS.md) for a plain-language
+  guide to each helper.
 - **Portfolio insight** — a read-only popup that scores dividend health,
   explains concentration and cuts in plain language, and charts income by year
   and by holding. Includes a **Yield vs own history** component once five
@@ -100,6 +101,7 @@ You can also run `python run.py` on any platform.
 | --- | --- |
 | [Setup](docs/SETUP.md) | Install, configure, verify, update, and troubleshoot |
 | [User guide](docs/USER_GUIDE.md) | Add stocks, enter quantities, import, analyze, delete |
+| [Portfolio agents](docs/PORTFOLIO_AGENTS.md) | What Briefing agents do, why they help, and how to use them |
 | [ChromaDB](docs/CHROMADB.md) | Embedded database, paths, backup, restore, reset |
 | [Architecture](docs/ARCHITECTURE.md) | Components, data model, API, concurrency |
 | [Contributing](CONTRIBUTING.md) | Development setup, tests, privacy rules |
