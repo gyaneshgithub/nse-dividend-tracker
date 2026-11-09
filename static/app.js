@@ -41,6 +41,7 @@ const el = {
   sumProjected: document.getElementById('sum-projected'),
   sumProjectedDelta: document.getElementById('sum-projected-delta'),
   sumForecast: document.getElementById('sum-forecast'),
+  sumForecastLabel: document.getElementById('sum-forecast-label'),
   sumForecastDelta: document.getElementById('sum-forecast-delta'),
   projectionScenarios: document.getElementById('projection-scenarios'),
   sumMonthly: document.getElementById('sum-monthly'),
@@ -858,6 +859,25 @@ function dpsSparkline(trend) {
   return `<span class="dps-spark" aria-hidden="true">${bars}</span>`;
 }
 
+function forecastPeakMonth(byMonth) {
+  let peak = null;
+  for (const row of byMonth || []) {
+    const income = Number(row.income) || 0;
+    if (income <= 0) continue;
+    if (!peak || income > peak.income) peak = { month: row.month, income };
+  }
+  return peak;
+}
+
+function formatForecastMonth(ym) {
+  const parts = String(ym || '').split('-');
+  if (parts.length < 2) return ym || '';
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return ym;
+  return new Date(y, m - 1, 1).toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+}
+
 async function loadSummaryForecast() {
   const token = ++summaryForecastToken;
   if (!el.sumForecast) return;
@@ -867,22 +887,33 @@ async function loadSummaryForecast() {
     if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
     if (token !== summaryForecastToken) return;
     const base = (json.scenarios || {}).base || {};
-    el.sumForecast.textContent = fmtMoney(base.total || 0);
-    let delta = base.avgMonthly != null ? `Avg ${fmtMoney(base.avgMonthly)}/mo (spread for planning)` : '';
+    const peak = forecastPeakMonth(base.byMonth);
     const proj = state.summaryProjections && state.summaryProjections.base
       ? state.summaryProjections.base.income
       : null;
-    if (proj && base.total) {
-      const pct = Math.round((base.total - proj) / proj * 100);
-      if (Math.abs(pct) <= 35) {
-        delta += ` · ~${pct >= 0 ? '' : ''}${pct}% vs next-yr base`;
-      } else {
-        delta += ' · check Briefing for missing qty';
+    const total = Number(base.total) || 0;
+
+    if (peak) {
+      if (el.sumForecastLabel) el.sumForecastLabel.textContent = `Peak month · ${formatForecastMonth(peak.month)}`;
+      el.sumForecast.textContent = fmtMoney(peak.income);
+      let delta = total > 0 ? `12-mo total ${fmtMoney(total)}` : '';
+      if (proj && total) {
+        const pct = Math.round((total - proj) / proj * 100);
+        if (Math.abs(pct) <= 5) delta += ' · ≈ next-yr base';
+        else if (Math.abs(pct) <= 35) delta += ` · total ${pct >= 0 ? '+' : ''}${pct}% vs next-yr`;
+        else delta += ' · see Analysis → Forward cashflow';
+      } else if (total) {
+        delta += ' · see Analysis for all months';
       }
+      el.sumForecastDelta.textContent = delta;
+    } else {
+      if (el.sumForecastLabel) el.sumForecastLabel.textContent = 'Next 12 months cash (est.)';
+      el.sumForecast.textContent = fmtMoney(total) || '—';
+      el.sumForecastDelta.textContent = 'No payout months in forecast yet';
     }
-    el.sumForecastDelta.textContent = delta;
   } catch (e) {
     if (token !== summaryForecastToken) return;
+    if (el.sumForecastLabel) el.sumForecastLabel.textContent = 'Peak month cash (est.)';
     el.sumForecast.textContent = '—';
     el.sumForecastDelta.textContent = '';
   }
