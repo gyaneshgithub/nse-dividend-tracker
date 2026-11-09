@@ -101,6 +101,47 @@ def test_dividend_refresh_diff_detects_new_and_change():
     assert "new-payout" in types
 
 
+def test_income_attribution_tasks_qty_dominant(db):
+    db.save_holding(
+        {
+            "ticker": "TCS",
+            "name": "TCS",
+            "shares": 10,
+            "quarters": {"2025-Q2": 10, "2026-Q2": 25},
+            "dividends": [
+                {"date": "2025-05-01", "amount": 2.0},
+                {"date": "2026-05-01", "amount": 2.0},
+            ],
+            "status": "ok",
+            "updatedAt": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    tasks = agent.income_attribution_tasks(db.load_holdings(), 2026)
+    attrib = [t for t in tasks if t.get("type") == "income-attribution" and t.get("ticker") == "TCS"]
+    assert len(attrib) == 1
+    assert attrib[0]["action"] == "focus-quarter"
+    assert "quantities" in attrib[0]["message"]
+
+
+def test_coach_includes_income_attribution(db):
+    db.save_holding(
+        {
+            "ticker": "ITC",
+            "name": "ITC",
+            "shares": 10,
+            "quarters": {"2025-Q2": 10, "2026-Q2": 30},
+            "dividends": [
+                {"date": "2025-05-01", "amount": 5.0},
+                {"date": "2026-05-01", "amount": 5.0},
+            ],
+            "status": "ok",
+            "updatedAt": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    tasks = coach.build("2026")["tasks"]
+    assert any(t.get("type") == "income-attribution" for t in tasks)
+
+
 def test_save_holding_records_dividend_alerts_and_coach_task(db):
     db.save_holding(
         {

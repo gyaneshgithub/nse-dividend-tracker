@@ -18,7 +18,7 @@ import insight
 from insight import DISCLAIMER, _holding_insight
 
 RULESET = "v1"
-RULESET_VERSION = 4
+RULESET_VERSION = 5
 STALE_FETCH_DAYS = int(os.environ.get("COACH_STALE_FETCH_DAYS", "7") or "7")
 SCENARIO_SPREAD_PCT = 15.0
 MAX_EVENTS = 30
@@ -332,6 +332,7 @@ def build(year="all"):
     tasks.extend(_scenario_spread_task(result.get("projections")))
     tasks.extend(agent.reconcile_tasks(holdings, year_value))
     tasks.extend(agent.refresh_diff_tasks(holdings, year_value))
+    tasks.extend(agent.income_attribution_tasks(holdings, year_value, result))
     tasks.extend(agent.calendar_block_tasks(holdings, year_value if isinstance(year_value, int) else None))
     current_year = datetime.now(timezone.utc).year
     if isinstance(year_value, int) and year_value == current_year:

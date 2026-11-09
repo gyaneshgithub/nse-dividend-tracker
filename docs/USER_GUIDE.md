@@ -230,7 +230,10 @@ The red badge on the button counts open **P0** items for the dashboard year.
 Task buttons can jump to a quarter cell, refresh a ticker, open **Analysis**
 or **Insight**, or **Dismiss** a dividend refresh alert. After a successful
 refresh that changed payout history, briefing may list **new-payout** or
-**dps-change** items for the selected year.
+**dps-change** items for the selected year. For a **calendar year** view, briefing
+may also show **income-attribution** tasks that explain whether a stock's
+year-on-year income move came mainly from quantities, dividend per share, or new
+payouts.
 
 ## Portfolio insight
 

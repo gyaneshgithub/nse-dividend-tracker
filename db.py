@@ -1011,6 +1011,58 @@ def _holding_income_at_prev_quarters(holding, year):
     return round(total, 2)
 
 
+def holding_yoy_attribution(holding, year):
+    """Decompose one holding's calendar-year income change vs the prior year."""
+    if year is None:
+        return None
+    prev = year - 1
+    inc_prev = _holding_income_for_year(holding, prev)
+    inc_curr = _holding_income_for_year(holding, year)
+    if inc_prev <= 0 and inc_curr <= 0:
+        return None
+    delta = round(inc_curr - inc_prev, 2)
+    if delta == 0:
+        return None
+
+    if inc_prev <= 0 < inc_curr:
+        qty = 0.0
+        dps = 0.0
+        comp = delta
+        dominant = "composition"
+    elif inc_prev > 0 >= inc_curr:
+        qty = 0.0
+        dps = 0.0
+        comp = delta
+        dominant = "composition"
+    else:
+        at_prev_qty = _holding_income_at_prev_quarters(holding, year)
+        qty = round(inc_curr - at_prev_qty, 2)
+        dps = round(at_prev_qty - inc_prev, 2)
+        comp = 0.0
+        drivers = {"quantity": abs(qty), "dps": abs(dps), "composition": abs(comp)}
+        dominant = max(drivers, key=drivers.get)
+
+    base = abs(delta) if delta else 0.0
+    dominant_amount = {"quantity": qty, "dps": dps, "composition": comp}[dominant]
+    share_pct = round(abs(dominant_amount) / base * 100, 1) if base > 0 else 0.0
+
+    return {
+        "ticker": holding["ticker"],
+        "previousYear": prev,
+        "currentYear": year,
+        "previousIncome": round(inc_prev, 2),
+        "currentIncome": round(inc_curr, 2),
+        "delta": delta,
+        "components": {
+            "quantity": qty,
+            "dps": dps,
+            "composition": comp,
+        },
+        "dominant": dominant,
+        "dominantSharePct": share_pct,
+    }
+
+
 def _income_bridge(holdings, year):
     if year is None:
         return None

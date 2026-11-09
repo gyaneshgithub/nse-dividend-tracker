@@ -45,8 +45,8 @@ are included in this repository.*
   and a year-on-year income bridge (quantity, dividend and composition).
 - **Portfolio briefing** — a read-only task list built from local data:
   missing quantities, failed or stale fetches, dividend cuts, concentration and
-  scenario spread, plus refresh-diff alerts when payout history changes, with
-  one-click actions.
+  scenario spread, refresh-diff alerts when payout history changes, and YoY
+  income attribution for the selected calendar year, with one-click actions.
 - **Portfolio insight** — a read-only popup that scores dividend health,
   explains concentration and cuts in plain language, and charts income by year
   and by holding. Includes a **Yield vs own history** component once five

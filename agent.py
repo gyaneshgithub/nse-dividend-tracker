@@ -17,6 +17,16 @@ from market import SYMBOL_RE
 RECONCILE_TOLERANCE_ABS = 50.0
 RECONCILE_TOLERANCE_PCT = 2.0
 IMPORT_CONFLICT_QTY_DROP_PCT = 50.0
+ATTRIBUTION_MIN_DELTA_ABS = 25.0
+ATTRIBUTION_DOMINANCE_PCT = 55.0
+MAX_ATTRIBUTION_TASKS = 4
+ATTRIBUTION_BRIDGE_MIN_ABS = 500.0
+
+_DOMINANT_LABELS = {
+    "quantity": "share quantities",
+    "dps": "dividend per share",
+    "composition": "new or removed payouts",
+}
 
 _MONTH_NAMES = [
     "Jan",
@@ -630,6 +640,108 @@ def apply_dividend_alerts(holding: dict, changes: list, prior_alerts: list | Non
         seen.add(alert_id)
     merged["dividendAlerts"] = alerts[:40]
     return merged
+
+
+def _largest_qty_quarter(holding, year: int) -> str | None:
+    prev = year - 1
+    best_key = None
+    best_abs = -1
+    for dividend in holding.get("dividends") or []:
+        date = str(dividend.get("date") or "")
+        if len(date) < 4:
+            continue
+        try:
+            div_year = int(date[:4])
+        except ValueError:
+            continue
+        if div_year != year:
+            continue
+        key = db.quarter_key(date)
+        try:
+            quarter = int(key.split("-Q", 1)[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        prev_key = f"{prev}-Q{quarter}"
+        delta = db._qty_for_quarter(holding, key) - db._qty_for_quarter(holding, prev_key)
+        if abs(delta) > best_abs:
+            best_abs = abs(delta)
+            best_key = key
+    return best_key
+
+
+def income_attribution_tasks(holdings, year_value, analysis: dict | None = None) -> list:
+    if not isinstance(year_value, int):
+        return []
+    year = year_value
+    rows = []
+    for holding in holdings:
+        row = db.holding_yoy_attribution(holding, year)
+        if not row or abs(float(row.get("delta") or 0)) < ATTRIBUTION_MIN_DELTA_ABS:
+            continue
+        if float(row.get("dominantSharePct") or 0) < ATTRIBUTION_DOMINANCE_PCT:
+            continue
+        rows.append(row)
+    rows.sort(key=lambda r: abs(float(r.get("delta") or 0)), reverse=True)
+
+    tasks = []
+    for row in rows[:MAX_ATTRIBUTION_TASKS]:
+        ticker = row["ticker"]
+        delta = float(row["delta"])
+        dominant = str(row.get("dominant") or "quantity")
+        label = _DOMINANT_LABELS.get(dominant, dominant)
+        share = float(row.get("dominantSharePct") or 0)
+        sign = "+" if delta >= 0 else ""
+        action = "focus-quarter" if dominant == "quantity" else "open-insight"
+        holding = next((h for h in holdings if h.get("ticker") == ticker), None)
+        quarter = _largest_qty_quarter(holding, year) if holding and dominant == "quantity" else None
+        tasks.append(
+            {
+                "id": f"attrib:{ticker}:{year}",
+                "priority": "p2",
+                "type": "income-attribution",
+                "ticker": ticker,
+                "year": year,
+                "quarter": quarter,
+                "message": (
+                    f"{ticker}: {sign}₹{abs(delta):,.0f} income vs {year - 1} is mostly "
+                    f"{label} ({share:.0f}% of the move)."
+                ),
+                "action": action,
+                "context": {
+                    "dominant": dominant,
+                    "delta": delta,
+                    "dominantSharePct": share,
+                },
+            }
+        )
+
+    bridge = (analysis or {}).get("incomeBridge")
+    if bridge and bridge.get("delta") is not None:
+        total_delta = float(bridge["delta"])
+        if abs(total_delta) >= ATTRIBUTION_BRIDGE_MIN_ABS:
+            components = {c["key"]: float(c["amount"]) for c in bridge.get("components") or []}
+            drivers = {k: abs(v) for k, v in components.items()}
+            dominant = max(drivers, key=drivers.get)
+            base = abs(total_delta)
+            share = round(drivers[dominant] / base * 100, 1) if base > 0 else 0.0
+            if share >= ATTRIBUTION_DOMINANCE_PCT:
+                label = _DOMINANT_LABELS.get(dominant, dominant)
+                sign = "+" if total_delta >= 0 else ""
+                tasks.append(
+                    {
+                        "id": f"attrib:portfolio:{year}",
+                        "priority": "p2",
+                        "type": "income-attribution",
+                        "year": year,
+                        "message": (
+                            f"Portfolio: {sign}₹{abs(total_delta):,.0f} vs {year - 1} is "
+                            f"mostly {label} ({share:.0f}% of the move). See Analysis income bridge."
+                        ),
+                        "action": "open-analysis",
+                        "context": {"dominant": dominant, "delta": total_delta, "scope": "portfolio"},
+                    }
+                )
+    return tasks
 
 
 def refresh_diff_tasks(holdings, year_value=None) -> list:

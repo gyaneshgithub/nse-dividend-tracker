@@ -299,7 +299,10 @@ On `PUT /api/portfolio/<ticker>`, when merged dividends differ from the stored
 copy, `agent.dividend_refresh_diff` runs before write: alerts are persisted on
 the holding as `dividendAlerts`, and the response may include
 `dividendChanges` (ephemeral). Coach task type `new-payout` / `dps-change` is
-derived from non-dismissed alerts (`agent.refresh_diff_tasks`).
+derived from non-dismissed alerts (`agent.refresh_diff_tasks`). For calendar
+years, `agent.income_attribution_tasks` uses `db.holding_yoy_attribution` and the
+analysis `incomeBridge` to add `income-attribution` tasks (qty vs DPS vs
+composition).
 
 ## Search
 
