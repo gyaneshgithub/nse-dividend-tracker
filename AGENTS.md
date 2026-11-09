@@ -15,6 +15,11 @@ A local-first NSE dividend tracker:
 - `db.py` — embedded ChromaDB storage, merging, tombstones, analysis, search.
 - `insight.py` — read-only portfolio scoring and narrative (no writes, no network).
 - `coach.py` — read-only portfolio briefing, tasks and events (no writes, no network).
+- `agent.py` — deterministic portfolio agents (reconcile, import/export, calendar,
+  tax, refresh-diff alerts, income attribution, cashflow stress); writes only on
+  import/autofill apply paths it orchestrates, not from coach.
+- `forecast.py` — rolling cashflow scenarios, autofill plans, and stress metrics
+  (read-only math).
 - `market.py` — fetches and parses dividend history from stockanalysis.com.
 - `templates/index.html` — page shell; `static/app.css` and `static/app.js`
   hold the UI styling and behaviour (vanilla, no build step).
@@ -23,7 +28,9 @@ A local-first NSE dividend tracker:
 - `tests/` — pytest suite.
 
 Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before changing storage or
-concurrency behavior.
+concurrency behavior. The **Portfolio agents** table there lists `agent.py` and
+`forecast.py` capabilities (reconcile, import, refresh diff, attribution,
+stress, autofill).
 
 ## Commands
 

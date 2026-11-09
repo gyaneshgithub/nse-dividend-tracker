@@ -43,10 +43,14 @@ are included in this repository.*
 - **Bulk import** from a spreadsheet or CSV: downloadable template, ticker plus Q1–Q4 quantities.
 - **Income analysis** by year, stock, and quarter, including monthly averages
   and a year-on-year income bridge (quantity, dividend and composition).
+- **Rolling 12-month cashflow** — conservative / base / growth scenarios in
+  Analysis, Briefing, and `GET /api/forecast`; optional stress compare (base vs
+  conservative and −10% qty/DPS shocks).
 - **Portfolio briefing** — a read-only task list built from local data:
   missing quantities, failed or stale fetches, dividend cuts, concentration and
-  scenario spread, refresh-diff alerts when payout history changes, and YoY
-  income attribution for the selected calendar year, with one-click actions.
+  scenario spread, reconcile gaps, refresh-diff alerts, YoY income attribution,
+  cashflow stress warnings, export/FY tax and autofill hints, with one-click
+  actions.
 - **Portfolio insight** — a read-only popup that scores dividend health,
   explains concentration and cuts in plain language, and charts income by year
   and by holding. Includes a **Yield vs own history** component once five
@@ -213,6 +217,8 @@ native run. Do not expose the port to the public internet.
 ├── db.py                  ChromaDB storage, merging, tombstones, analysis
 ├── insight.py             Read-only portfolio scoring and narrative
 ├── coach.py               Read-only portfolio briefing and coach tasks (API)
+├── agent.py               Portfolio agents (import, reconcile, alerts, attribution, stress)
+├── forecast.py            Forward cashflow scenarios, autofill, stress metrics
 ├── market.py              NSE dividend fetch, parse, cache
 ├── run.py                 Universal launcher (creates .venv on first run)
 ├── start.sh / start.bat   Platform wrappers

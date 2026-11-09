@@ -21,6 +21,10 @@ ATTRIBUTION_MIN_DELTA_ABS = 25.0
 ATTRIBUTION_DOMINANCE_PCT = 55.0
 MAX_ATTRIBUTION_TASKS = 4
 ATTRIBUTION_BRIDGE_MIN_ABS = 500.0
+CASHFLOW_STRESS_GAP_PCT = 10.0
+CASHFLOW_STRESS_SEVERE_PCT = 18.0
+CASHFLOW_STRESS_MIN_BASE = 500.0
+MAX_CASHFLOW_STRESS_TICKER_TASKS = 3
 
 _DOMINANT_LABELS = {
     "quantity": "share quantities",
@@ -741,6 +745,80 @@ def income_attribution_tasks(holdings, year_value, analysis: dict | None = None)
                         "context": {"dominant": dominant, "delta": total_delta, "scope": "portfolio"},
                     }
                 )
+    return tasks
+
+
+def cashflow_stress_tasks(holdings, forecast_data: dict | None = None) -> list:
+    if not holdings:
+        return []
+    import forecast
+
+    report = forecast.stress_report(forecast_data)
+    if not report:
+        return []
+    base = float(report.get("baseTotal") or 0)
+    if base < CASHFLOW_STRESS_MIN_BASE:
+        return []
+
+    tasks = []
+    gap_pct = report.get("baseVsConservativeGapPct")
+    cons_total = float(report.get("conservativeTotal") or 0)
+    if gap_pct is not None and gap_pct >= CASHFLOW_STRESS_GAP_PCT:
+        tasks.append(
+            {
+                "id": "cashflow:base-vs-conservative",
+                "priority": "p2",
+                "type": "cashflow-stress",
+                "message": (
+                    f"12-month cashflow: base ₹{base:,.0f} vs conservative ₹{cons_total:,.0f} "
+                    f"({gap_pct:.0f}% gap). Peak quantities or DPS may be optimistic."
+                ),
+                "action": "open-analysis",
+                "context": {"stressKind": "base-vs-conservative", "gapPct": gap_pct},
+            }
+        )
+
+    severe_pct = report.get("severeStressGapPct")
+    severe_total = float(report.get("severeStressTotal") or 0)
+    if severe_pct is not None and severe_pct >= CASHFLOW_STRESS_SEVERE_PCT:
+        tasks.append(
+            {
+                "id": "cashflow:severe-shock",
+                "priority": "p1",
+                "type": "cashflow-stress",
+                "message": (
+                    f"Stress test (−10% qty & −10% DPS): 12-month cash falls to "
+                    f"₹{severe_total:,.0f} ({severe_pct:.0f}% below base). "
+                    "Review quantities and dividend assumptions."
+                ),
+                "action": "open-analysis",
+                "context": {"stressKind": "severe", "gapPct": severe_pct},
+            }
+        )
+
+    portfolio_gap = float(report.get("baseVsConservativeGapAbs") or 0)
+    for row in (report.get("tickerGaps") or [])[:MAX_CASHFLOW_STRESS_TICKER_TASKS]:
+        gap = float(row.get("gap") or 0)
+        if gap < 100:
+            continue
+        if portfolio_gap > 0 and gap / portfolio_gap < 0.15:
+            continue
+        ticker = row.get("ticker") or "?"
+        share = round(gap / base * 100, 1) if base > 0 else 0.0
+        tasks.append(
+            {
+                "id": f"cashflow:gap:{ticker}",
+                "priority": "p2",
+                "type": "cashflow-stress",
+                "ticker": ticker,
+                "message": (
+                    f"{ticker}: conservative 12-month forecast is ₹{gap:,.0f} below base "
+                    f"({share:.0f}% of portfolio base scenario)."
+                ),
+                "action": "open-insight",
+                "context": {"stressKind": "ticker-gap", "gap": gap},
+            }
+        )
     return tasks
 
 

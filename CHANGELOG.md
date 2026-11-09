@@ -6,6 +6,14 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Cashflow stress agent.** `forecast.stress_report` compares 12-month base vs
+  conservative scenarios and explicit −10% quantity/DPS shocks. Briefing adds
+  `cashflow-stress` tasks when gaps exceed thresholds; summary may note severe
+  stress. Coach ruleset v6.
+- **Income attribution agent.** Calendar-year briefing tasks decompose YoY income
+  per ticker (quantity vs DPS vs composition) via `db.holding_yoy_attribution`.
+- **Refresh diff agent.** Saves detect new or revised payouts; `dividendAlerts`
+  persist on holdings; Briefing lists `new-payout` / `dps-change` with Dismiss.
 - **Yield snapshot history and valuation insight.** Each successful refresh appends
   to `priceHistory` on the holding. With five or more snapshots, Insight scores
   **Yield vs own history** (valuation component) from today's yield versus the

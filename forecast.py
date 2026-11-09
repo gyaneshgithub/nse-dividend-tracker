@@ -273,3 +273,82 @@ def apply_autofill_row(holding, year: int) -> dict | None:
     merged["quarterUpdatedAt"] = times
     merged["updatedAt"] = stamp
     return db.save_holding(merged)
+
+
+STRESS_QTY_MULT = 0.90
+STRESS_DPS_MULT = 0.90
+
+
+def _stress_holding_month(holding, year: int, month: int, qty_mult: float, dps_mult: float) -> float:
+    months = _payout_months(holding, as_of_year=year)
+    if month not in months:
+        return 0.0
+    dps = _forecast_dps_for_month(holding, month, "base", year) * dps_mult
+    qty = _forecast_qty(holding, year, month, "base")
+    if qty_mult != 1.0:
+        qty = max(0, int(round(qty * qty_mult)))
+    return round(dps * qty, 2)
+
+
+def _stress_total(holdings, horizon: int, qty_mult: float, dps_mult: float) -> float:
+    start_year, start_month = _as_of_month()
+    total = 0.0
+    for offset in range(horizon):
+        y, m = _month_add(start_year, start_month, offset)
+        for holding in holdings:
+            total += _stress_holding_month(holding, y, m, qty_mult, dps_mult)
+    return round(total, 2)
+
+
+def _ticker_scenario_gaps(holdings, horizon: int) -> list:
+    start_year, start_month = _as_of_month()
+    rows = []
+    for holding in holdings:
+        ticker = holding.get("ticker") or "?"
+        base_t = 0.0
+        cons_t = 0.0
+        for offset in range(horizon):
+            y, m = _month_add(start_year, start_month, offset)
+            base_t += _holding_month_income(holding, y, m, "base")
+            cons_t += _holding_month_income(holding, y, m, "conservative")
+        gap = round(base_t - cons_t, 2)
+        if gap > 0:
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "base": round(base_t, 2),
+                    "conservative": round(cons_t, 2),
+                    "gap": gap,
+                }
+            )
+    return sorted(rows, key=lambda r: r["gap"], reverse=True)
+
+
+def stress_report(forecast_data: dict | None = None, horizon: int = DEFAULT_HORIZON) -> dict:
+    """Compare base, conservative, and explicit ±10% qty/DPS shocks over the horizon."""
+    holdings = db.load_holdings()
+    if not holdings:
+        return {}
+    data = forecast_data or build(horizon)
+    months = int(data.get("horizonMonths") or horizon)
+    scenarios = data.get("scenarios") or {}
+    base = float(scenarios.get("base", {}).get("total") or 0)
+    cons = float(scenarios.get("conservative", {}).get("total") or 0)
+    growth = float(scenarios.get("growth", {}).get("total") or 0)
+    gap_abs = round(base - cons, 2)
+    gap_pct = round(gap_abs / base * 100, 1) if base > 0 else None
+    severe = _stress_total(holdings, months, STRESS_QTY_MULT, STRESS_DPS_MULT)
+    severe_gap_pct = round((base - severe) / base * 100, 1) if base > 0 else None
+    return {
+        "horizonMonths": months,
+        "baseTotal": base,
+        "conservativeTotal": cons,
+        "growthTotal": growth,
+        "baseVsConservativeGapAbs": gap_abs,
+        "baseVsConservativeGapPct": gap_pct,
+        "severeStressTotal": severe,
+        "severeStressGapPct": severe_gap_pct,
+        "qtyDown10Total": _stress_total(holdings, months, STRESS_QTY_MULT, 1.0),
+        "dpsDown10Total": _stress_total(holdings, months, 1.0, STRESS_DPS_MULT),
+        "tickerGaps": _ticker_scenario_gaps(holdings, months),
+    }

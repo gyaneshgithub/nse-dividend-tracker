@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import agent
 import coach
+import forecast
 
 
 def test_reconcile_gap_task(db):
@@ -140,6 +141,28 @@ def test_coach_includes_income_attribution(db):
     )
     tasks = coach.build("2026")["tasks"]
     assert any(t.get("type") == "income-attribution" for t in tasks)
+
+
+def test_cashflow_stress_tasks(db):
+    db.save_holding(
+        {
+            "ticker": "WIDE",
+            "name": "Wide",
+            "shares": 100,
+            "quarters": {"2026-Q2": 100},
+            "dividends": [
+                {"date": "2025-02-01", "amount": 10.0},
+                {"date": "2025-05-01", "amount": 10.0},
+                {"date": "2025-08-01", "amount": 10.0},
+                {"date": "2025-11-01", "amount": 10.0},
+            ],
+            "status": "ok",
+            "updatedAt": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    payload = forecast.build(12)
+    tasks = agent.cashflow_stress_tasks(db.load_holdings(), payload)
+    assert any(t.get("type") == "cashflow-stress" for t in tasks)
 
 
 def test_save_holding_records_dividend_alerts_and_coach_task(db):

@@ -85,3 +85,27 @@ def test_autofill_from_prior_year(db):
     updated = forecast.apply_autofill_row(db.load_holdings()[0], 2026)
     assert updated
     assert updated["quarters"].get("2026-Q1") == 8
+
+
+def test_stress_report_base_vs_conservative(db):
+    db.save_holding(
+        {
+            "ticker": "WIDE",
+            "name": "Wide spread",
+            "shares": 100,
+            "quarters": {"2026-Q2": 100},
+            "dividends": [
+                {"date": "2025-02-01", "amount": 10.0},
+                {"date": "2025-05-01", "amount": 10.0},
+                {"date": "2025-08-01", "amount": 10.0},
+                {"date": "2025-11-01", "amount": 10.0},
+            ],
+            "status": "ok",
+            "updatedAt": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    data = forecast.build(12)
+    report = forecast.stress_report(data)
+    assert report["baseTotal"] > report["conservativeTotal"]
+    assert (report.get("baseVsConservativeGapPct") or 0) >= 5
+    assert report["severeStressTotal"] < report["baseTotal"]

@@ -18,7 +18,7 @@ import insight
 from insight import DISCLAIMER, _holding_insight
 
 RULESET = "v1"
-RULESET_VERSION = 5
+RULESET_VERSION = 6
 STALE_FETCH_DAYS = int(os.environ.get("COACH_STALE_FETCH_DAYS", "7") or "7")
 SCENARIO_SPREAD_PCT = 15.0
 MAX_EVENTS = 30
@@ -323,6 +323,7 @@ def build(year="all"):
     stats = insight_data.get("stats") or {}
 
     share = {row["ticker"]: row.get("sharePct") or 0 for row in result.get("byStock", [])}
+    cashflow = forecast.build(12) if holdings else None
 
     tasks = []
     tasks.extend(_missing_quantity_tasks(holdings, year_value))
@@ -333,6 +334,7 @@ def build(year="all"):
     tasks.extend(agent.reconcile_tasks(holdings, year_value))
     tasks.extend(agent.refresh_diff_tasks(holdings, year_value))
     tasks.extend(agent.income_attribution_tasks(holdings, year_value, result))
+    tasks.extend(agent.cashflow_stress_tasks(holdings, cashflow))
     tasks.extend(agent.calendar_block_tasks(holdings, year_value if isinstance(year_value, int) else None))
     current_year = datetime.now(timezone.utc).year
     if isinstance(year_value, int) and year_value == current_year:
@@ -348,7 +350,6 @@ def build(year="all"):
     events.extend(agent.upcoming_calendar_events(holdings, cal_year))
     counts = _task_counts(tasks)
 
-    cashflow = forecast.build(12) if holdings else None
     briefing = _briefing(len(holdings), year_label, counts)
     if cashflow:
         base_total = (cashflow.get("scenarios") or {}).get("base", {}).get("total")
@@ -358,6 +359,16 @@ def build(year="all"):
                 "summary": (
                     briefing["summary"]
                     + f" Rolling 12-month cashflow estimate (base): ₹{base_total:,.0f}."
+                ),
+            }
+        stress = forecast.stress_report(cashflow)
+        severe = stress.get("severeStressGapPct")
+        if severe is not None and severe >= 15:
+            briefing = {
+                **briefing,
+                "summary": (
+                    briefing["summary"]
+                    + f" Stress test (−10% qty/DPS) is {severe:.0f}% below base over 12 months."
                 ),
             }
 

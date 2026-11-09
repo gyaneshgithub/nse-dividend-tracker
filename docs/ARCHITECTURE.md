@@ -260,6 +260,24 @@ recorded income; the components remain visible so the popup can explain the
 gap. Signals that need price history or external data are declared as deferred
 rather than scored as zero.
 
+## Portfolio agents (`agent.py` + `forecast.py`)
+
+Deterministic helpers (no LLM, no network in coach paths). Coach and API routes
+call them; most only emit tasks or exports.
+
+| Agent | Module | What it does |
+| --- | --- | --- |
+| Reconcile | `agent` | Bank vs computed income gaps → `open-reconcile` tasks |
+| Import / export | `agent` | CSV preview, apply, year export gate |
+| Calendar / tax | `agent` | `.ics` payout windows, FY tax checklist |
+| Refresh diff | `agent` + `db` | After save, detect new/changed payouts → `dividendAlerts`, coach `new-payout` / `dps-change` |
+| Income attribution | `agent` + `db` | Calendar-year YoY income driver per ticker → `income-attribution` tasks |
+| Cashflow stress | `agent` + `forecast` | 12-month base vs conservative gap and −10% qty/DPS shock → `cashflow-stress` tasks |
+| Autofill | `forecast` | Blank quarters from prior year → `apply-autofill` tasks |
+
+Rolling cashflow: `GET /api/forecast` → `forecast.build`. Stress metrics:
+`forecast.stress_report` (reuses scenario totals plus explicit shocks).
+
 ## Coach
 
 `GET /api/coach?year=YYYY|all` builds a read-only portfolio briefing from local
@@ -302,7 +320,9 @@ the holding as `dividendAlerts`, and the response may include
 derived from non-dismissed alerts (`agent.refresh_diff_tasks`). For calendar
 years, `agent.income_attribution_tasks` uses `db.holding_yoy_attribution` and the
 analysis `incomeBridge` to add `income-attribution` tasks (qty vs DPS vs
-composition).
+composition). `agent.cashflow_stress_tasks` uses `forecast.stress_report` on the
+12-month forecast (base vs conservative, severe −10% qty/DPS shock, per-ticker
+gaps).
 
 ## Search
 
