@@ -2,7 +2,7 @@
 const LS_HOLDINGS = 'dividendTracker.holdings.v1';
 const LS_SYNCED = 'dividendTracker.synced.v1';
 
-let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, coachOpen: false, coachYear: null, coachData: null, sortKey: null, sortDir: 'asc', summaryProjections: null, summaryAnalysis: null, importPlan: null, reconcileTicker: null, reconcileYear: null, reconcileComputed: null };
+let state = { holdings: [], year: null, historyTicker: null, analysisOpen: false, analysisYear: null, insightOpen: false, insightYear: null, insightTab: 'overview', insightData: null, coachOpen: false, coachYear: null, coachData: null, sortKey: null, sortDir: 'asc', summaryProjections: null, summaryAnalysis: null, summaryForecast: null, importPlan: null, reconcileTicker: null, reconcileYear: null, reconcileComputed: null };
 let summaryProjectionToken = 0;
 let summaryForecastToken = 0;
 let refreshing = false;
@@ -40,9 +40,7 @@ const el = {
   projectionCard: document.getElementById('projection-card'),
   sumProjected: document.getElementById('sum-projected'),
   sumProjectedDelta: document.getElementById('sum-projected-delta'),
-  sumForecast: document.getElementById('sum-forecast'),
-  sumForecastLabel: document.getElementById('sum-forecast-label'),
-  sumForecastDelta: document.getElementById('sum-forecast-delta'),
+  projectionTiming: document.getElementById('projection-timing'),
   projectionScenarios: document.getElementById('projection-scenarios'),
   sumMonthly: document.getElementById('sum-monthly'),
   sumMonthlyLabel: document.getElementById('sum-monthly-label'),
@@ -802,6 +800,20 @@ function renderProjectionScenarios() {
     if (!band || band.income === null || band.income === undefined) return '';
     return `<span title="${esc(projections.notes?.[bands.indexOf(b)] || '')}">${b.label}: <strong>${esc(fmtMoney(band.income))}</strong></span>`;
   }).join('');
+  renderProjectionTiming();
+}
+
+function renderProjectionTiming() {
+  if (!el.projectionTiming) return;
+  const peak = state.summaryForecast && state.summaryForecast.peak;
+  if (!peak || state.year === 'all' || state.year === null || isFyYear(state.year)) {
+    el.projectionTiming.hidden = true;
+    el.projectionTiming.textContent = '';
+    return;
+  }
+  el.projectionTiming.hidden = false;
+  el.projectionTiming.textContent =
+    `Cash lands unevenly — strongest month ${formatForecastMonth(peak.month)} (~${fmtMoney(peak.income)}). Open Analysis for the full 12-month calendar.`;
 }
 
 function renderIncomeBridge(bridge) {
@@ -878,44 +890,25 @@ function formatForecastMonth(ym) {
   return new Date(y, m - 1, 1).toLocaleString('en-IN', { month: 'short', year: 'numeric' });
 }
 
-async function loadSummaryForecast() {
+async function loadProjectionTiming() {
   const token = ++summaryForecastToken;
-  if (!el.sumForecast) return;
+  if (state.year === 'all' || state.year === null || isFyYear(state.year)) {
+    state.summaryForecast = null;
+    if (token === summaryForecastToken) renderProjectionTiming();
+    return;
+  }
   try {
     const res = await fetch('/api/forecast?months=12');
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
     if (token !== summaryForecastToken) return;
     const base = (json.scenarios || {}).base || {};
-    const peak = forecastPeakMonth(base.byMonth);
-    const proj = state.summaryProjections && state.summaryProjections.base
-      ? state.summaryProjections.base.income
-      : null;
-    const total = Number(base.total) || 0;
-
-    if (peak) {
-      if (el.sumForecastLabel) el.sumForecastLabel.textContent = `Peak month · ${formatForecastMonth(peak.month)}`;
-      el.sumForecast.textContent = fmtMoney(peak.income);
-      let delta = total > 0 ? `12-mo total ${fmtMoney(total)}` : '';
-      if (proj && total) {
-        const pct = Math.round((total - proj) / proj * 100);
-        if (Math.abs(pct) <= 5) delta += ' · ≈ next-yr base';
-        else if (Math.abs(pct) <= 35) delta += ` · total ${pct >= 0 ? '+' : ''}${pct}% vs next-yr`;
-        else delta += ' · see Analysis → Forward cashflow';
-      } else if (total) {
-        delta += ' · see Analysis for all months';
-      }
-      el.sumForecastDelta.textContent = delta;
-    } else {
-      if (el.sumForecastLabel) el.sumForecastLabel.textContent = 'Next 12 months cash (est.)';
-      el.sumForecast.textContent = fmtMoney(total) || '—';
-      el.sumForecastDelta.textContent = 'No payout months in forecast yet';
-    }
+    state.summaryForecast = { peak: forecastPeakMonth(base.byMonth), total: base.total };
+    renderProjectionTiming();
   } catch (e) {
     if (token !== summaryForecastToken) return;
-    if (el.sumForecastLabel) el.sumForecastLabel.textContent = 'Peak month cash (est.)';
-    el.sumForecast.textContent = '—';
-    el.sumForecastDelta.textContent = '';
+    state.summaryForecast = null;
+    renderProjectionTiming();
   }
 }
 
@@ -924,8 +917,10 @@ async function loadSummaryProjections() {
   if (year === 'all' || year === null || String(year).startsWith('fy:')) {
     state.summaryProjections = null;
     state.summaryAnalysis = null;
+    state.summaryForecast = null;
     renderProjectionScenarios();
     renderIncomeBridge(null);
+    renderProjectionTiming();
     return;
   }
   const token = ++summaryProjectionToken;
@@ -941,7 +936,7 @@ async function loadSummaryProjections() {
     }
     renderProjectionScenarios();
     renderIncomeBridge(json.incomeBridge || null);
-    loadSummaryForecast();
+    loadProjectionTiming();
     renderTable();
   } catch (e) {
     if (token !== summaryProjectionToken) return;
@@ -2600,7 +2595,7 @@ async function applyAutofill(ticker, year) {
     await fetchPortfolio();
     refreshCoachBadge();
     if (state.coachOpen) loadCoach();
-    loadSummaryForecast();
+    loadProjectionTiming();
     render();
     el.formMsg.textContent = `Filled blank quarters for ${ticker} in ${year} from prior-year quantities.`;
     el.formMsg.className = 'ok';
@@ -2672,7 +2667,6 @@ function render() {
   renderTable();
   renderHistory();
   loadSummaryProjections();
-  loadSummaryForecast();
   refreshCoachBadge();
 }
 // ---------- events ----------
