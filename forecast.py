@@ -21,25 +21,60 @@ def _month_add(year: int, month: int, offset: int) -> tuple[int, int]:
     return idx // 12, idx % 12 + 1
 
 
-def _payout_months(holding) -> dict[int, float]:
-    """Typical ex-month -> latest DPS observed in that month."""
-    last_by_month: dict[int, float] = {}
+def _schedule_year(holding, as_of_year: int) -> int | None:
+    """Latest calendar year with dividend-per-share data at or before as_of_year."""
+    totals = holding.get("yearTotals") or {}
+    years = []
+    for key, value in totals.items():
+        try:
+            year = int(key)
+            amount = float(value)
+        except (TypeError, ValueError):
+            continue
+        if year <= as_of_year and amount > 0:
+            years.append(year)
+    if years:
+        return max(years)
+    years = []
+    for div in holding.get("dividends") or []:
+        date = str(div.get("date") or "")
+        if len(date) < 4:
+            continue
+        try:
+            year = int(date[:4])
+        except ValueError:
+            continue
+        if year <= as_of_year:
+            years.append(year)
+    return max(years) if years else None
+
+
+def _payout_months(holding, as_of_year: int | None = None) -> dict[int, float]:
+    """Payment months and total DPS per month from the latest dividend year (not all history)."""
+    if as_of_year is None:
+        as_of_year = _as_of_month()[0]
+    schedule_year = _schedule_year(holding, as_of_year)
+    if schedule_year is None:
+        return {}
+    by_month: dict[int, float] = {}
     for div in holding.get("dividends") or []:
         date = str(div.get("date") or "")
         if len(date) < 7:
             continue
         try:
+            year = int(date[:4])
             month = int(date[5:7])
             amount = float(div.get("amount") or 0)
         except (TypeError, ValueError):
             continue
-        if amount > 0:
-            last_by_month[month] = amount
-    return last_by_month
+        if year != schedule_year or amount <= 0:
+            continue
+        by_month[month] = round(by_month.get(month, 0.0) + amount, 4)
+    return by_month
 
 
 def _forecast_dps_for_month(holding, month: int, scenario: str, calendar_year: int) -> float:
-    months = _payout_months(holding)
+    months = _payout_months(holding, as_of_year=calendar_year)
     base = months.get(month)
     if base is None:
         return 0.0
@@ -75,7 +110,7 @@ def _forecast_qty(holding, calendar_year: int, month: int, scenario: str) -> int
 
 
 def _holding_month_income(holding, year: int, month: int, scenario: str) -> float:
-    months = _payout_months(holding)
+    months = _payout_months(holding, as_of_year=year)
     if month not in months:
         return 0.0
     dps = _forecast_dps_for_month(holding, month, scenario, year)
@@ -92,8 +127,11 @@ def build(horizon_months: int = DEFAULT_HORIZON) -> dict:
     no_history = 0
     qty_gaps = 0
 
+    compare_year = start_year
+    projection_next = db._scenario_income(holdings, compare_year, "base")
+
     for holding in holdings:
-        if _payout_months(holding) or (holding.get("yearTotals") or {}):
+        if _payout_months(holding, as_of_year=start_year) or (holding.get("yearTotals") or {}):
             covered += 1
         else:
             no_history += 1
@@ -140,8 +178,15 @@ def build(horizon_months: int = DEFAULT_HORIZON) -> dict:
             "withoutHistory": no_history,
             "missingQuantityMaps": qty_gaps,
         },
+        "compare": {
+            "nextYearBaseFromAnalysis": projection_next,
+            "hint": (
+                "Next year (base) is one full calendar year at peak qty × annual DPS. "
+                "Rolling 12 months is when cash may land from today — usually similar, not 2×."
+            ),
+        },
         "assumptions": [
-            "Cash is booked only in months where this stock has paid historically (latest DPS per month).",
+            "Payment months come from the latest dividend year per stock, not every month ever seen in history.",
             "Quantities use the calendar year of each forecast month; otherwise peak/avg priors.",
             "Growth scenario applies capped per-share CAGR when at least three payout years exist.",
             "Monthly average is the 12-month total ÷ 12 (lumpy months, not a flat monthly cheque).",

@@ -27,6 +27,26 @@ def test_forecast_builds_monthly_totals(db):
     assert len(base["byMonth"]) == 6
 
 
+def test_forecast_ignores_ancient_bonus_months(db):
+    db.save_holding(
+        {
+            "ticker": "TATASTEEL",
+            "name": "Tata Steel",
+            "shares": 10,
+            "quarters": {"2026-Q1": 10},
+            "dividends": [
+                {"date": "2018-01-01", "amount": 50.0},
+                {"date": "2025-08-15", "amount": 3.0},
+                {"date": "2025-02-15", "amount": 2.0},
+            ],
+            "status": "ok",
+            "updatedAt": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    data = forecast.build(12)
+    assert data["scenarios"]["base"]["total"] <= 60.0
+
+
 def test_forecast_only_payout_months(db):
     db.save_holding(
         {

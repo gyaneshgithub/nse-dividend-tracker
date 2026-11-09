@@ -868,9 +868,19 @@ async function loadSummaryForecast() {
     if (token !== summaryForecastToken) return;
     const base = (json.scenarios || {}).base || {};
     el.sumForecast.textContent = fmtMoney(base.total || 0);
-    el.sumForecastDelta.textContent = base.avgMonthly != null
-      ? `Avg ${fmtMoney(base.avgMonthly)}/mo (lumpy payouts)`
-      : '';
+    let delta = base.avgMonthly != null ? `Avg ${fmtMoney(base.avgMonthly)}/mo (spread for planning)` : '';
+    const proj = state.summaryProjections && state.summaryProjections.base
+      ? state.summaryProjections.base.income
+      : null;
+    if (proj && base.total) {
+      const pct = Math.round((base.total - proj) / proj * 100);
+      if (Math.abs(pct) <= 35) {
+        delta += ` · ~${pct >= 0 ? '' : ''}${pct}% vs next-yr base`;
+      } else {
+        delta += ' · check Briefing for missing qty';
+      }
+    }
+    el.sumForecastDelta.textContent = delta;
   } catch (e) {
     if (token !== summaryForecastToken) return;
     el.sumForecast.textContent = '—';
@@ -900,6 +910,7 @@ async function loadSummaryProjections() {
     }
     renderProjectionScenarios();
     renderIncomeBridge(json.incomeBridge || null);
+    loadSummaryForecast();
     renderTable();
   } catch (e) {
     if (token !== summaryProjectionToken) return;
