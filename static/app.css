@@ -25,7 +25,7 @@ button.danger:disabled { opacity: 0.4; cursor: default; }
 .value.green { color: #30d158; }
 .value.blue { color: #64d2ff; }
 .value.purple { color: #bf5af2; }
-.stat-card .delta { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 8px; background: #3a3a3c; color: #8e8e93; }
+.stat-card .delta { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 8px; background: #3a3a3c; color: #8e8e93; max-width: 100%; line-height: 1.35; white-space: normal; }
 .stat-card .delta.up { color: #30d158; background: rgba(48, 209, 88, 0.14); }
 .stat-card .delta.down { color: #ff6961; background: rgba(255, 105, 97, 0.14); }
 .scenario-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }

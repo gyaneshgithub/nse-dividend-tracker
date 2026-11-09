@@ -42,15 +42,7 @@ def _forecast_dps_for_month(holding, month: int, scenario: str, calendar_year: i
     months = _payout_months(holding)
     base = months.get(month)
     if base is None:
-        totals = holding.get("yearTotals") or {}
-        try:
-            annual = float(totals.get(str(calendar_year)) or totals.get(str(calendar_year - 1)) or 0)
-        except (TypeError, ValueError):
-            annual = 0.0
-        if annual <= 0:
-            return 0.0
-        payout_months = len(months) or 1
-        base = annual / payout_months
+        return 0.0
     if scenario == "conservative":
         return base * 0.95
     if scenario == "base":
@@ -84,7 +76,7 @@ def _forecast_qty(holding, calendar_year: int, month: int, scenario: str) -> int
 
 def _holding_month_income(holding, year: int, month: int, scenario: str) -> float:
     months = _payout_months(holding)
-    if month not in months and not (holding.get("yearTotals") or {}):
+    if month not in months:
         return 0.0
     dps = _forecast_dps_for_month(holding, month, scenario, year)
     qty = _forecast_qty(holding, year, month, scenario)
@@ -149,10 +141,11 @@ def build(horizon_months: int = DEFAULT_HORIZON) -> dict:
             "missingQuantityMaps": qty_gaps,
         },
         "assumptions": [
-            "Payout months follow the most recent dividend dates per stock.",
-            "Quantities use the selected calendar year's quarters when set; otherwise peak/avg priors.",
+            "Cash is booked only in months where this stock has paid historically (latest DPS per month).",
+            "Quantities use the calendar year of each forecast month; otherwise peak/avg priors.",
             "Growth scenario applies capped per-share CAGR when at least three payout years exist.",
-            "Illustrative cash timing only — not a guarantee of future dividends or dates.",
+            "Monthly average is the 12-month total ÷ 12 (lumpy months, not a flat monthly cheque).",
+            "Illustrative timing only — not a guarantee of future dividends or dates.",
         ],
     }
 

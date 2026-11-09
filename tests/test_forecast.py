@@ -27,6 +27,25 @@ def test_forecast_builds_monthly_totals(db):
     assert len(base["byMonth"]) == 6
 
 
+def test_forecast_only_payout_months(db):
+    db.save_holding(
+        {
+            "ticker": "ITC",
+            "name": "ITC",
+            "shares": 100,
+            "quarters": {"2026-Q3": 100},
+            "dividends": [{"date": "2025-08-15", "amount": 5.0}],
+            "status": "ok",
+            "updatedAt": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    data = forecast.build(12)
+    with_itc = [row for row in data["scenarios"]["base"]["byMonth"] if "ITC" in row["tickers"]]
+    assert len(with_itc) <= 2
+    assert sum(row["income"] for row in with_itc) <= 501.0
+    assert sum(row["income"] for row in data["scenarios"]["base"]["byMonth"]) <= 501.0
+
+
 def test_autofill_from_prior_year(db):
     db.save_holding(
         {

@@ -868,8 +868,8 @@ async function loadSummaryForecast() {
     if (token !== summaryForecastToken) return;
     const base = (json.scenarios || {}).base || {};
     el.sumForecast.textContent = fmtMoney(base.total || 0);
-    el.sumForecastDelta.textContent = base.avgMonthly
-      ? `~${fmtMoney(base.avgMonthly)}/month · automated from payout history`
+    el.sumForecastDelta.textContent = base.avgMonthly != null
+      ? `Avg ${fmtMoney(base.avgMonthly)}/mo (lumpy payouts)`
       : '';
   } catch (e) {
     if (token !== summaryForecastToken) return;
