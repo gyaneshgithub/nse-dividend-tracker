@@ -243,8 +243,10 @@ payouts.
 
 Briefing also shows a **12-month cashflow outlook** (base / conservative /
 growth). Task types (`reconcile-gap`, `new-payout`, `income-attribution`,
-`cashflow-stress`, and others) are described in
-**[Portfolio agents](PORTFOLIO_AGENTS.md)**.
+`cashflow-stress`, `dividend-compounder`, and others) are described in
+**[Portfolio agents](PORTFOLIO_AGENTS.md)**. **Compounder** tasks flag names with
+a long payout streak and rising DPS in your data so you can review them in
+Insight — they do not recommend buying or selling.
 
 ## Portfolio insight
 

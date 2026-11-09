@@ -49,9 +49,10 @@ are included in this repository.*
 - **Portfolio briefing** — a read-only task list built from local data:
   missing quantities, failed or stale fetches, dividend cuts, concentration and
   scenario spread, reconcile gaps, refresh-diff alerts, YoY income attribution,
-  cashflow stress warnings, export/FY tax and autofill hints, with one-click
-  actions. See [Portfolio agents](docs/PORTFOLIO_AGENTS.md) for a plain-language
-  guide to each helper.
+  cashflow stress warnings, dividend compounder highlights (streak + DPS growth,
+  not buy advice), export/FY tax and autofill hints, with one-click actions.
+  See [Portfolio agents](docs/PORTFOLIO_AGENTS.md) for a plain-language guide to
+  each helper.
 - **Portfolio insight** — a read-only popup that scores dividend health,
   explains concentration and cuts in plain language, and charts income by year
   and by holding. Includes a **Yield vs own history** component once five

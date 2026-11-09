@@ -6,6 +6,9 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Dividend compounder agent.** Briefing `dividend-compounder` tasks for
+  holdings with ≥4-year streak, positive DPS CAGR, and no recent cuts; opens
+  Insight (descriptive, not buy advice). Coach ruleset v7.
 - **Portfolio agents user guide.** [docs/PORTFOLIO_AGENTS.md](docs/PORTFOLIO_AGENTS.md)
   explains each Briefing helper, workflows, and privacy for non-technical users.
 - **Cashflow stress agent.** `forecast.stress_report` compares 12-month base vs

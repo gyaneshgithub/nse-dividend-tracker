@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 import db
 import insight
+from insight import _holding_insight
 from market import SYMBOL_RE
 
 RECONCILE_TOLERANCE_ABS = 50.0
@@ -25,6 +26,11 @@ CASHFLOW_STRESS_GAP_PCT = 10.0
 CASHFLOW_STRESS_SEVERE_PCT = 18.0
 CASHFLOW_STRESS_MIN_BASE = 500.0
 MAX_CASHFLOW_STRESS_TICKER_TASKS = 3
+COMPOUNDER_MIN_STREAK = 4
+COMPOUNDER_MIN_YEARS = 4
+COMPOUNDER_MIN_CAGR_PCT = 0.0
+COMPOUNDER_UNDERWEIGHT_SHARE_PCT = 15.0
+MAX_COMPOUNDER_TASKS = 5
 
 _DOMINANT_LABELS = {
     "quantity": "share quantities",
@@ -745,6 +751,67 @@ def income_attribution_tasks(holdings, year_value, analysis: dict | None = None)
                         "context": {"dominant": dominant, "delta": total_delta, "scope": "portfolio"},
                     }
                 )
+    return tasks
+
+
+def compounder_tasks(holdings, year_value, share_map: dict | None = None) -> list:
+    """Highlight holdings with a long, growing dividend record in stored history."""
+    if not holdings:
+        return []
+    share_map = share_map or {}
+    insight_year = year_value if isinstance(year_value, int) else None
+    candidates = []
+    for holding in holdings:
+        ticker = holding.get("ticker") or "?"
+        row = _holding_insight(holding, float(share_map.get(ticker) or 0), insight_year)
+        if row.get("cuts"):
+            continue
+        streak = int(row.get("streak") or 0)
+        if streak < COMPOUNDER_MIN_STREAK:
+            continue
+        if int(row.get("yearsOfHistory") or 0) < COMPOUNDER_MIN_YEARS:
+            continue
+        cagr = row.get("cagrPct")
+        if cagr is None or cagr <= COMPOUNDER_MIN_CAGR_PCT:
+            continue
+        underweight = float(row.get("sharePct") or 0) < COMPOUNDER_UNDERWEIGHT_SHARE_PCT
+        candidates.append({**row, "underweight": underweight})
+
+    candidates.sort(
+        key=lambda row: (row["underweight"], float(row.get("cagrPct") or 0)),
+        reverse=True,
+    )
+
+    tasks = []
+    for row in candidates[:MAX_COMPOUNDER_TASKS]:
+        ticker = row.get("ticker") or "?"
+        streak = int(row.get("streak") or 0)
+        cagr = float(row.get("cagrPct") or 0)
+        share = float(row.get("sharePct") or 0)
+        if row["underweight"] and share > 0:
+            tail = (
+                f" It supplies only {share:.1f}% of this period's income "
+                "— review sizing in Insight."
+            )
+        elif share <= 0:
+            tail = " No income in this period — confirm quantities, then review Insight."
+        else:
+            tail = " Review the trend in Insight."
+        tasks.append(
+            {
+                "id": f"compounder:{ticker}",
+                "priority": "p2",
+                "type": "dividend-compounder",
+                "ticker": ticker,
+                "message": (
+                    f"{ticker}: {streak}-year payout streak and {cagr:.1f}% DPS CAGR "
+                    "in stored history — consistent dividend growth in your data "
+                    f"(not a buy recommendation).{tail}"
+                ),
+                "action": "open-insight",
+                "context": {"streak": streak, "cagrPct": cagr, "sharePct": share},
+            }
+        )
     return tasks
 
 

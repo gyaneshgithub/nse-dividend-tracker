@@ -143,6 +143,63 @@ def test_coach_includes_income_attribution(db):
     assert any(t.get("type") == "income-attribution" for t in tasks)
 
 
+def test_compounder_tasks_qualifies_growing_streak(db):
+    db.save_holding(
+        {
+            "ticker": "GROW",
+            "name": "GrowCo",
+            "shares": 10,
+            "quarters": {"2026-Q2": 10},
+            "dividends": [
+                {"date": f"{year}-05-01", "amount": 2.0 + i * 0.3}
+                for i, year in enumerate(range(2022, 2027))
+            ],
+            "status": "ok",
+            "updatedAt": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    db.save_holding(
+        {
+            "ticker": "CUT",
+            "name": "CutCo",
+            "shares": 10,
+            "quarters": {"2026-Q2": 10},
+            "dividends": [
+                {"date": "2022-05-01", "amount": 4.0},
+                {"date": "2023-05-01", "amount": 4.0},
+                {"date": "2024-05-01", "amount": 4.0},
+                {"date": "2025-05-01", "amount": 1.5},
+                {"date": "2026-05-01", "amount": 1.5},
+            ],
+            "status": "ok",
+            "updatedAt": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    tasks = agent.compounder_tasks(db.load_holdings(), 2026, {"GROW": 5.0, "CUT": 5.0})
+    types = {t["ticker"] for t in tasks if t.get("type") == "dividend-compounder"}
+    assert "GROW" in types
+    assert "CUT" not in types
+
+
+def test_coach_includes_compounder(db):
+    db.save_holding(
+        {
+            "ticker": "GROW",
+            "name": "GrowCo",
+            "shares": 10,
+            "quarters": {"2026-Q2": 10},
+            "dividends": [
+                {"date": f"{year}-05-01", "amount": 2.0 + i * 0.3}
+                for i, year in enumerate(range(2022, 2027))
+            ],
+            "status": "ok",
+            "updatedAt": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    tasks = coach.build("2026")["tasks"]
+    assert any(t.get("type") == "dividend-compounder" for t in tasks)
+
+
 def test_cashflow_stress_tasks(db):
     db.save_holding(
         {

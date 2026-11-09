@@ -276,6 +276,7 @@ call them; most only emit tasks or exports.
 | Refresh diff | `agent` + `db` | After save, detect new/changed payouts → `dividendAlerts`, coach `new-payout` / `dps-change` |
 | Income attribution | `agent` + `db` | Calendar-year YoY income driver per ticker → `income-attribution` tasks |
 | Cashflow stress | `agent` + `forecast` | 12-month base vs conservative gap and −10% qty/DPS shock → `cashflow-stress` tasks |
+| Dividend compounder | `agent` + `insight` | Streak + positive DPS CAGR, no recent cuts → `dividend-compounder` tasks (`open-insight`) |
 | Autofill | `forecast` | Blank quarters from prior year → `apply-autofill` tasks |
 
 Rolling cashflow: `GET /api/forecast` → `forecast.build`. Stress metrics:

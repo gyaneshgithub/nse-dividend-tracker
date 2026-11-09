@@ -153,7 +153,28 @@ workflow.
 
 **Actions:** run export, open tax pack in Analysis.
 
-### 8. Calendar agent
+### 8. Dividend compounder agent
+
+Surfaces holdings that look like **consistent dividend growers in your stored
+history** — not a stock picker and not buy advice.
+
+**Qualifies when (per holding, for the Briefing year when it is a calendar year):**
+
+- At least **4 consecutive years** with a payout (streak)
+- At least **4 years** of dividend history in the tracker
+- **Positive DPS CAGR** across that history
+- **No dividend cut** &gt; 15% year-on-year in the last five years
+
+**Tasks:** up to five names, prioritising high CAGR and names that supply a
+**small share** of current income (under ~15%) so you can review whether your
+**recorded** sizing matches the quality of the dividend track record.
+
+**Action:** open **Insight** (Holdings tab has streak, CAGR, and trend).
+
+**Value:** connects “this company kept paying and growing DPS” to a single
+Briefing line — you still decide any investment change.
+
+### 9. Calendar agent
 
 Builds upcoming **dividend window** hints from payment patterns and offers
 **download calendar (.ics)** for reminders.
