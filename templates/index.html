@@ -28,6 +28,17 @@
     </header>
     <div id="year-note" aria-live="polite"></div>
     <div id="income-bridge" class="income-bridge" hidden aria-live="polite"></div>
+    <div id="ca-banner" class="ca-banner" role="status" hidden>
+      <span class="ca-banner-icon" aria-hidden="true">📢</span>
+      <div class="ca-banner-text">
+        <strong id="ca-banner-title"></strong>
+        <span id="ca-banner-detail"></span>
+      </div>
+      <div class="ca-banner-actions">
+        <button type="button" class="secondary" id="ca-view" title="See every upcoming bonus and split on NSE">View</button>
+        <button type="button" class="icon-btn" id="ca-dismiss" aria-label="Dismiss bonus and split alert" title="Dismiss">✕</button>
+      </div>
+    </div>
 
     <section class="summary">
       <div class="stat-card" title="Number of stocks in your tracker"><div class="label">Holdings</div><div class="value" id="sum-count">0</div></div>
@@ -250,6 +261,27 @@
           <button id="coach-reload" class="insight-reload" title="Recompute the briefing from local data">↻ Recompute</button>
         </div>
         <div id="coach-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="ca-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ca-title">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title" id="ca-title">📢 Bonus &amp; split alerts</div>
+          <div class="modal-sub" id="ca-sub">Upcoming NSE bonus issues and share splits</div>
+        </div>
+        <button class="icon-btn modal-close" id="ca-close" title="Close alerts (Esc)" aria-label="Close alerts">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="ca-toolbar">
+          <span class="import-hint" id="ca-meta"></span>
+          <button type="button" class="secondary" id="ca-reload" title="Re-check the NSE corporate-actions feed">↻ Check now</button>
+        </div>
+        <div id="ca-body"></div>
+        <div class="import-hint">Read-only. Quantities are not adjusted automatically —
+          update them after the action takes effect.</div>
       </div>
     </div>
   </div>

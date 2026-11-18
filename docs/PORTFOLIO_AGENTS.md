@@ -19,11 +19,17 @@ time hunting problems and more time fixing the few rows that matter.
 | **Analysis** | Income bridge, forward cashflow, monthly cashflow (feeds stress and attribution logic) |
 | **Import / Reconcile / Export** | Agent-backed previews and gates before you change data |
 | **After refresh** | Dividend-history change message on the dashboard when payouts update |
+| **Dashboard notice** | Upcoming bonus or split for a held stock (read-only, from NSE corporate actions) |
 
 Open **Briefing**, pick a **year** (calendar year, FY, or all years). Tasks
 filter to what matters for that period. Nothing in Briefing writes to the
 database until you click an action that saves (for example dismiss alert,
 autofill, or editing a quantity).
+
+The **bonus and split notice** is a separate, read-only check: it queries NSE
+corporate actions and shows a dismissible banner when a stock you hold has an
+upcoming bonus issue or share split. It never changes quantities, and it stays
+hidden if NSE is unreachable.
 
 ## How tasks work
 

@@ -37,6 +37,7 @@ README_REQUIRED = [
     "Financial-year view",
     "Portfolio briefing",
     "Yield vs own history",
+    "Bonus and split alerts",
     "first run",
 ]
 

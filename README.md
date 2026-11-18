@@ -38,6 +38,10 @@ are included in this repository.*
   glance.
 - **Financial-year view** — filter by India's April–March FY (FY 2026-27) or by
   calendar year, with a monthly cashflow breakdown in Analysis.
+- **Bonus and split alerts** — a dismissible dashboard notice when NSE
+  announces a bonus issue or share split for a stock you hold, with the
+  ex-date, days away and ratio. Read-only: quantities are never adjusted
+  automatically.
 - **Automatic year rollover** — a new calendar year appears on 1 January with
   blank quantities; earlier years are preserved.
 - **Bulk import** from a spreadsheet or CSV: downloadable template, ticker plus Q1–Q4 quantities.
@@ -133,6 +137,7 @@ Copy `.env.example` to `.env` to change defaults. The app works without a
 | `DIVIDEND_DB_DIR` | `./chroma_db` | ChromaDB directory. Relative paths resolve from the project root. |
 | `DIVIDEND_DATA_DIR` | `./data` | JSON backup directory. |
 | `DIVIDEND_CACHE_TTL` | `21600` | Upstream dividend cache lifetime in seconds. |
+| `DIVIDEND_ACTIONS_TTL` | `21600` | Bonus/split feed cache lifetime in seconds. |
 | `ANONYMIZED_TELEMETRY` | `False` | ChromaDB telemetry opt-out. |
 
 Command-line overrides:

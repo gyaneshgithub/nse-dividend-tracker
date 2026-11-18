@@ -160,6 +160,29 @@ a missing dividend history, the network, rate limiting, or the upstream site.
 Use **Retry** to try again, or **Copy debug info** to copy the ticker, error
 code, message, storage status and browser details for troubleshooting.
 
+## Bonus and split alerts
+
+The tracker checks NSE corporate actions for bonus issues and share splits and
+shows a notice under the header when one is announced for a stock you hold:
+
+- **📢 VGL stock split** — ex-date, days away, and the ratio or face-value
+  change (for example `Face value ₹5 → ₹2` or `Bonus 1:1`).
+- **View** opens the full list: your holdings first, then other NSE companies
+  with an upcoming bonus or split.
+- **✕** dismisses the current alerts. Dismissal is stored in this browser;
+  a newly announced action shows up again.
+
+Only bonus issues and splits are reported. Dividends, buy-backs, rights issues
+and preference-share (NCRPS) bonuses are ignored. The list refreshes about
+every six hours and whenever your holdings change; **↻ Check now** in the
+dialog forces a fetch. Set `DIVIDEND_ACTIONS_TTL` (seconds) to change the cache
+lifetime.
+
+The check is read-only: it never changes quantities. After a split or bonus
+takes effect, update the affected quarter quantities yourself so income keeps
+matching the shares you actually held. If NSE is unreachable, the notice simply
+stays hidden and the rest of the tracker keeps working.
+
 ## Bulk import
 
 Click **📥 Import** to load quarterly quantities from a spreadsheet.
@@ -384,7 +407,8 @@ supported.
 ### Is my portfolio uploaded anywhere?
 
 No. Your holdings and quantities stay in local files. The only outbound
-requests are dividend-page fetches from stockanalysis.com. ChromaDB telemetry
+requests are dividend-page fetches from stockanalysis.com and NSE
+corporate-action lookups for bonus/split alerts. ChromaDB telemetry
 is disabled by default.
 
 ### Can I run it on a phone?
@@ -392,6 +416,7 @@ is disabled by default.
 The web UI is responsive. On a narrow screen the summary cards stack, the
 controls wrap, and the table scrolls sideways with the stock column pinned and
 the header stuck to the top; a swipe hint appears above the table. The server
-must still run on a computer that can reach stockanalysis.com. Exposing it to
+must still run on a computer that can reach stockanalysis.com (dividends) and
+nseindia.com (bonus/split alerts). Exposing it to
 your local network is possible with `HOST=0.0.0.0`, but there is no
 authentication. Use a trusted network only.

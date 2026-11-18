@@ -170,7 +170,8 @@ The setting is applied in `db.py` and `server.py`, and CI uses the same value.
 You can opt in by changing it, but the project does not need telemetry.
 
 Your holdings never leave your machine. The only network calls are dividend
-page fetches from stockanalysis.com.
+page fetches from stockanalysis.com and NSE corporate-action lookups for bonus
+and split alerts.
 
 ## Inspecting the database
 

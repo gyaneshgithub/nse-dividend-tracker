@@ -11,7 +11,7 @@ A local-first NSE dividend tracker:
 - `server.py` — Flask app composition root: request guards, headers, error
   handlers, startup.
 - `routes/` — blueprints by area: pages, portfolio storage, dividends,
-  analysis/insight/search, system status.
+  analysis/insight/search, corporate actions, system status.
 - `db.py` — embedded ChromaDB storage, merging, tombstones, analysis, search.
 - `insight.py` — read-only portfolio scoring and narrative (no writes, no network).
 - `coach.py` — read-only portfolio briefing, tasks and events (no writes, no network).
@@ -21,6 +21,8 @@ A local-first NSE dividend tracker:
 - `forecast.py` — rolling cashflow scenarios, autofill plans, and stress metrics
   (read-only math).
 - `market.py` — fetches and parses dividend history from stockanalysis.com.
+- `corporate.py` — fetches NSE corporate actions and keeps only upcoming bonus
+  issues and splits; read-only, cached, never raises.
 - `templates/index.html` — page shell; `static/app.css` and `static/app.js`
   hold the UI styling and behaviour (vanilla, no build step).
 - `run.py` — universal launcher; creates `.venv` on first run.

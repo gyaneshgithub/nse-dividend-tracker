@@ -24,6 +24,11 @@ shell plus static CSS/JS assets).
 │ ChromaDB     │  │ stockanalysis.com  │
 │ JSON mirror  │  │ in-memory cache    │
 └──────────────┘  └────────────────────┘
+                         │
+                  ┌──────▼──────────────┐
+                  │ corporate.py        │
+                  │ NSE bonus/split feed│
+                  └─────────────────────┘
 ```
 
 ## Components
@@ -52,6 +57,8 @@ Each module owns its routes and the storage calls they need.
   a stable `code` (invalid symbol, missing history, network, rate limit,
   upstream) and a user-facing `hint`.
 - `analysis.py` — `/api/analysis`, `/api/insight` and `/api/search`.
+- `corporate.py` — `/api/corporate-actions`; upcoming bonus and split actions
+  from NSE, with tracked holdings flagged.
 - `system.py` — `/api/health` and `/api/storage`.
 - `common.py` — shared storage-status and storage-error helpers.
 
@@ -85,6 +92,18 @@ Each module owns its routes and the storage calls they need.
   (default six hours).
 - Raises `LookupError` when no dividend history exists, `ValueError` for an
   invalid ticker, and propagates network errors.
+
+### `corporate.py`
+
+- Fetches the NSE corporate-actions feed (`nseindia.com`) for a date window.
+- Keeps only **bonus issues** and **share splits**; dividends, buy-backs,
+  rights issues and preference-share (NCRPS) bonuses are filtered out.
+- Normalises `exDate` to ISO, computes days away, extracts the ratio or
+  face-value change, and flags actions that match a tracked holding.
+- Caches the raw window in memory for `DIVIDEND_ACTIONS_TTL` seconds (default
+  six hours) and never raises: failures return `ok: False` with an `error`
+  string so the UI can stay quiet.
+- Read-only. Quantities are not adjusted on splits or bonuses.
 
 ### `templates/index.html`
 
@@ -349,6 +368,7 @@ distance-derived score.
 | `GET` | `/api/analysis?year=...` | Income analysis |
 | `GET` | `/api/insight?year=...` | Read-only portfolio scores, narrative and charts |
 | `GET` | `/api/coach?year=...` | Read-only briefing, tasks and events (ruleset expands over time) |
+| `GET` | `/api/corporate-actions?days=60` | Upcoming bonus/split actions; `held` flags tracked stocks |
 | `GET` | `/api/search?q=...` | Semantic payout search |
 | `GET` | `/api/storage` | ChromaDB status |
 
@@ -371,6 +391,8 @@ error page.
 ## Tests
 
 - `tests/test_market.py` — parsing and cache behavior, with no network.
+- `tests/test_corporate.py` — bonus/split filtering, windowing, held flags and
+  the failure path, with the feed mocked.
 - `tests/test_db.py` — normalization, merge, tombstones, analysis, backup
   restore.
 - `tests/test_server.py` — Flask routes and error responses.

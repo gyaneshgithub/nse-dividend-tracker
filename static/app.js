@@ -95,6 +95,17 @@ const el = {
   historyClose: document.getElementById('history-close'),
   dbStatus: document.getElementById('db-status'),
   dbStatusText: document.getElementById('db-status-text'),
+  caBanner: document.getElementById('ca-banner'),
+  caBannerTitle: document.getElementById('ca-banner-title'),
+  caBannerDetail: document.getElementById('ca-banner-detail'),
+  caView: document.getElementById('ca-view'),
+  caDismiss: document.getElementById('ca-dismiss'),
+  caModal: document.getElementById('ca-modal'),
+  caClose: document.getElementById('ca-close'),
+  caSub: document.getElementById('ca-sub'),
+  caMeta: document.getElementById('ca-meta'),
+  caBody: document.getElementById('ca-body'),
+  caReload: document.getElementById('ca-reload'),
   analysisBtn: document.getElementById('analysis-btn'),
   analysisModal: document.getElementById('analysis-modal'),
   analysisClose: document.getElementById('analysis-close'),
@@ -140,7 +151,7 @@ function loadSyncedTickers() {
 function saveSyncedTickers() {
   localStorage.setItem(LS_SYNCED, JSON.stringify([...syncedTickers]));
 }
-function persist() { saveHoldings(); render(); if (state.insightOpen) loadInsight(); }
+function persist() { saveHoldings(); render(); if (state.insightOpen) loadInsight(); scheduleCaRefresh(); }
 
 function getHolding(ticker) { return state.holdings.find(h => h.ticker === ticker); }
 function findIndex(ticker) { return state.holdings.findIndex(h => h.ticker === ticker); }
@@ -2894,6 +2905,7 @@ document.addEventListener('keydown', e => {
   if (state.historyTicker) closeHistory();
   else if (!el.reconcileModal.hidden) closeReconcile();
   else if (!el.importModal.hidden) closeImport();
+  else if (!el.caModal.hidden) closeCaModal();
   else if (state.coachOpen) closeCoach();
   else if (state.insightOpen) closeInsight();
   else if (state.analysisOpen) closeAnalysis();
@@ -2962,6 +2974,190 @@ el.holdingsBody.addEventListener('keydown', e => {
   }
 });
 
+// ---------- upcoming bonus & split actions ----------
+
+const LS_CA_DISMISSED = 'dividendTracker.caDismissed.v1';
+const CA_REFRESH_MS = 6 * 60 * 60 * 1000;
+let caData = null;
+let caFetchedAt = 0;
+let caRequest = 0;
+let caReloadTimer = null;
+let caHoldingsKey = '';
+
+function caHoldingsSignature() {
+  return state.holdings.map(h => h.ticker).sort().join(',');
+}
+
+function loadCaDismissed() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_CA_DISMISSED) || '[]');
+    return new Set(Array.isArray(raw) ? raw : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function saveCaDismissed(dismissed) {
+  try { localStorage.setItem(LS_CA_DISMISSED, JSON.stringify([...dismissed])); } catch (e) { /* storage full */ }
+}
+
+function caLabel(action) {
+  return action.type === 'bonus' ? 'bonus issue' : 'stock split';
+}
+
+function caDateLabel(action) {
+  const days = Number(action.daysAway);
+  const when = fmtDate(action.exDate);
+  if (days === 0) return 'ex-date today · ' + when;
+  if (days === 1) return 'ex-date tomorrow · ' + when;
+  return 'ex-date ' + when + ' · in ' + days + ' days';
+}
+
+function caHeldActions() {
+  return ((caData && caData.actions) || []).filter(a => a.held);
+}
+
+function renderCaBanner() {
+  const dismissed = loadCaDismissed();
+  const visible = caHeldActions().filter(a => !dismissed.has(a.id));
+  if (!visible.length) {
+    el.caBanner.hidden = true;
+    return;
+  }
+  const first = visible[0];
+  el.caBannerTitle.textContent = visible.length === 1
+    ? first.symbol + ' ' + caLabel(first)
+    : visible.length + ' upcoming bonus / split actions';
+  el.caBannerDetail.textContent = visible.length === 1
+    ? caDateLabel(first) + ' · ' + first.detail
+    : first.symbol + ' ' + caLabel(first) + ' · ' + caDateLabel(first);
+  el.caBanner.hidden = false;
+}
+
+function caItem(action) {
+  return `<li class="ca-item${action.held ? ' held' : ''}">
+    <div class="ca-item-main">
+      <span class="ticker-badge">${esc(action.symbol)}</span>
+      <strong>${esc(caLabel(action))}</strong>
+      <span class="ca-detail">${esc(action.detail)}</span>
+      <div class="meta">${esc(action.name)} · ${esc(caDateLabel(action))}${action.held ? ' · in your tracker' : ''}</div>
+    </div>
+  </li>`;
+}
+
+function renderCaBody() {
+  if (!caData) {
+    el.caBody.innerHTML = '<div class="analysis-empty">Checking NSE corporate actions…</div>';
+    return;
+  }
+  if (!caData.ok) {
+    el.caBody.innerHTML = '<div class="analysis-error">Could not check NSE: '
+      + esc(caData.error || 'unknown error')
+      + '. The tracker keeps working; try again later.</div>';
+    return;
+  }
+  const actions = caData.actions || [];
+  if (!actions.length) {
+    el.caBody.innerHTML = '<div class="analysis-empty">No bonus or split actions announced for the next '
+      + esc(caData.days) + ' days.</div>';
+    return;
+  }
+  const held = actions.filter(a => a.held);
+  const other = actions.filter(a => !a.held);
+  let html = '';
+  if (held.length) {
+    html += '<div class="insight-subhead">Your holdings</div><ul class="ca-list">'
+      + held.map(caItem).join('') + '</ul>';
+  }
+  if (other.length) {
+    html += '<div class="insight-subhead">Other NSE companies</div><ul class="ca-list">'
+      + other.map(caItem).join('') + '</ul>';
+  }
+  el.caBody.innerHTML = html;
+}
+
+function updateCaMeta() {
+  if (!caData) {
+    el.caMeta.textContent = '';
+    return;
+  }
+  const checked = caData.asOf ? fmtDate(caData.asOf) : '';
+  el.caMeta.textContent = caData.ok
+    ? 'Source: ' + caData.source + ' · checked ' + checked
+    : 'Source: ' + caData.source + ' · unavailable (' + (caData.error || 'error') + ')';
+}
+
+function renderCa() {
+  renderCaBanner();
+  if (!el.caModal.hidden) renderCaBody();
+}
+
+async function loadCorporateActions(force) {
+  if (!state.holdings.length) {
+    caData = null;
+    el.caBanner.hidden = true;
+    return;
+  }
+  const fresh = caData && Date.now() - caFetchedAt < CA_REFRESH_MS;
+  if (!force && fresh && caData.ok) {
+    renderCa();
+    updateCaMeta();
+    return;
+  }
+  const token = ++caRequest;
+  caHoldingsKey = caHoldingsSignature();
+  try {
+    const res = await fetch('/api/corporate-actions?days=60');
+    const json = await res.json().catch(() => ({}));
+    if (token !== caRequest) return;
+    caData = json;
+  } catch (e) {
+    if (token !== caRequest) return;
+    caData = { ok: false, error: e.message || String(e), actions: [], days: 60, source: 'nseindia.com corporate actions', asOf: '' };
+  }
+  if (token !== caRequest) return;
+  caFetchedAt = Date.now();
+  renderCa();
+  updateCaMeta();
+}
+
+function scheduleCaRefresh() {
+  if (caReloadTimer) clearTimeout(caReloadTimer);
+  caReloadTimer = setTimeout(() => {
+    caReloadTimer = null;
+    const signature = caHoldingsSignature();
+    if (caData && signature === caHoldingsKey) return;
+    caHoldingsKey = signature;
+    loadCorporateActions(true);
+  }, 1200);
+}
+
+function openCaModal() {
+  if (state.analysisOpen) closeAnalysis();
+  if (state.coachOpen) closeCoach();
+  if (state.insightOpen) closeInsight();
+  el.caModal.hidden = false;
+  renderCaBody();
+  updateCaMeta();
+  el.caClose.focus();
+  loadCorporateActions(false);
+}
+
+function closeCaModal() {
+  el.caModal.hidden = true;
+}
+
+el.caView.addEventListener('click', openCaModal);
+el.caClose.addEventListener('click', closeCaModal);
+el.caModal.addEventListener('click', e => { if (e.target === el.caModal) closeCaModal(); });
+el.caReload.addEventListener('click', () => loadCorporateActions(true));
+el.caDismiss.addEventListener('click', () => {
+  const dismissed = loadCaDismissed();
+  caHeldActions().forEach(action => dismissed.add(action.id));
+  saveCaDismissed(dismissed);
+  renderCaBanner();
+});
+
 // ---------- cross-window sync ----------
 document.addEventListener('focusout', () => {
   setTimeout(() => {
@@ -3026,5 +3222,6 @@ async function init() {
 
   startPolling();
   refreshAll();
+  loadCorporateActions(false);
 }
 init();

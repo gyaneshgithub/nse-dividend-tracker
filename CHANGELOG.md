@@ -6,6 +6,11 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Bonus and split alerts.** A dismissible dashboard notice and a read-only
+  list of upcoming NSE bonus issues and share splits for tracked holdings,
+  with ex-date, days away and ratio. New `corporate.py`, `GET
+  /api/corporate-actions`, `DIVIDEND_ACTIONS_TTL` cache setting. Quantities are
+  not adjusted automatically.
 - **Dividend compounder agent.** Briefing `dividend-compounder` tasks for
   holdings with ≥4-year streak, positive DPS CAGR, and no recent cuts; opens
   Insight (descriptive, not buy advice). Coach ruleset v7.
