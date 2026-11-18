@@ -106,6 +106,18 @@ const el = {
   caMeta: document.getElementById('ca-meta'),
   caBody: document.getElementById('ca-body'),
   caReload: document.getElementById('ca-reload'),
+  clearModal: document.getElementById('clear-modal'),
+  clearClose: document.getElementById('clear-close'),
+  clearCancel: document.getElementById('clear-cancel'),
+  clearConfirm: document.getElementById('clear-confirm'),
+  clearConfirmInput: document.getElementById('clear-confirm-input'),
+  clearYearToken: document.getElementById('clear-year-token'),
+  clearImpact: document.getElementById('clear-impact'),
+  clearSub: document.getElementById('clear-sub'),
+  undoToast: document.getElementById('undo-toast'),
+  undoText: document.getElementById('undo-text'),
+  undoBtn: document.getElementById('undo-btn'),
+  undoClose: document.getElementById('undo-close'),
   analysisBtn: document.getElementById('analysis-btn'),
   analysisModal: document.getElementById('analysis-modal'),
   analysisClose: document.getElementById('analysis-close'),
@@ -2756,36 +2768,153 @@ el.tableHead.addEventListener('keydown', e => {
   toggleSort(th.dataset.sort);
 });
 
-function clearSelectedYear() {
+let clearSnapshot = null;
+let clearYearKey = null;
+let clearTimer = null;
+
+function clearCandidates(year) {
+  const affected = [];
+  for (const h of state.holdings) {
+    const keys = Object.keys(h.quarters || {}).filter(
+      k => k.startsWith(year + '-') && Number(h.quarters[k]) > 0
+    );
+    if (keys.length) affected.push({ holding: h, keys });
+  }
+  return affected;
+}
+
+function openClearYear() {
   const year = state.year;
-  if (year === 'all') {
-    showFormMessage('Select a specific year before clearing.', 'error');
+  if (year === 'all' || isFyYear(year)) {
+    showFormMessage('Select a calendar year before resetting quantities.', 'error');
     return;
   }
+  const affected = clearCandidates(year);
+  if (!affected.length) {
+    showFormMessage(`Nothing to reset — every ${year} quarter is already zero.`, 'info');
+    return;
+  }
+  clearYearKey = String(year);
+  const cells = affected.reduce((sum, item) => sum + item.keys.length, 0);
+  const income = affected.reduce((sum, item) => sum + incomeFor(item.holding, year), 0);
+  el.clearSub.textContent = `Only quantities saved under ${year} change. Other years are untouched.`;
+  el.clearYearToken.textContent = year;
+  el.clearImpact.innerHTML = `
+    <ul class="clear-impact-list">
+      <li><strong>${affected.length}</strong> stock${affected.length === 1 ? '' : 's'} affected</li>
+      <li><strong>${cells}</strong> non-zero quarter cell${cells === 1 ? '' : 's'} will be set to 0</li>
+      <li><strong>${fmtMoney(income)}</strong> of ${year} income will disappear from totals</li>
+    </ul>
+    <div class="clear-impact-names">${affected.map(item => esc(item.holding.ticker)).join(', ')}</div>`;
+  el.clearConfirmInput.value = '';
+  el.clearConfirm.disabled = true;
+  el.clearConfirm.textContent = `Reset ${year}`;
+  el.clearModal.hidden = false;
+  el.clearConfirmInput.focus();
+}
+
+function closeClearYear() {
+  el.clearModal.hidden = true;
+  el.clearConfirmInput.value = '';
+  el.clearConfirm.disabled = true;
+  clearYearKey = null;
+}
+
+function showUndoToast(text) {
+  el.undoText.textContent = text;
+  el.undoToast.hidden = false;
+  if (clearTimer) clearTimeout(clearTimer);
+  clearTimer = setTimeout(() => {
+    el.undoToast.hidden = true;
+    clearTimer = null;
+    clearSnapshot = null;
+  }, 20000);
+}
+
+function hideUndoToast() {
+  el.undoToast.hidden = true;
+  if (clearTimer) {
+    clearTimeout(clearTimer);
+    clearTimer = null;
+  }
+}
+
+function confirmClearYear() {
+  const year = clearYearKey;
+  if (!year || el.clearConfirmInput.value.trim() !== year) return;
   const affected = [];
   for (const h of state.holdings) {
     const keys = Object.keys(h.quarters || {}).filter(k => k.startsWith(year + '-'));
-    if (keys.length) affected.push({ holding: h, keys });
+    if (!keys.length) continue;
+    const previous = {};
+    for (const key of keys) previous[key] = h.quarters[key];
+    affected.push({ holding: h, keys, previous });
   }
   if (!affected.length) {
-    showFormMessage(`No saved quantities for ${year}.`, 'info');
+    closeClearYear();
     return;
   }
-  const total = affected.reduce((sum, item) => sum + item.keys.length, 0);
-  if (!window.confirm(`Set all ${total} saved quarter quantities for ${year} to 0? This cannot be undone.`)) return;
-  for (const { holding, keys } of affected) {
+  clearSnapshot = {
+    year,
+    items: affected.map(item => ({ ticker: item.holding.ticker, quarters: item.previous })),
+  };
+  let cells = 0;
+  for (const { holding, keys, previous } of affected) {
     for (const key of keys) {
+      if (Number(previous[key]) > 0) cells += 1;
       holding.quarters[key] = 0;
       touch(holding, key);
     }
   }
   persist();
   dbImportAll(affected.map(item => item.holding));
-  el.formMsg.textContent = `Cleared ${total} quarter value(s) for ${year}. Enter the correct quantities.`;
+  closeClearYear();
+  el.formMsg.textContent = `Reset ${cells} quarter value(s) for ${year}.`;
+  el.formMsg.className = 'ok';
+  showUndoToast(`Reset ${cells} quarter value(s) for ${year}.`);
+}
+
+function undoClearYear() {
+  if (!clearSnapshot) return;
+  const year = clearSnapshot.year;
+  const restored = [];
+  for (const item of clearSnapshot.items) {
+    const h = getHolding(item.ticker);
+    if (!h) continue;
+    for (const [key, value] of Object.entries(item.quarters)) {
+      h.quarters[key] = value;
+      touch(h, key);
+    }
+    restored.push(h);
+  }
+  clearSnapshot = null;
+  hideUndoToast();
+  if (!restored.length) {
+    showFormMessage('Undo failed: those stocks are no longer in the tracker.', 'error');
+    return;
+  }
+  persist();
+  dbImportAll(restored);
+  el.formMsg.textContent = `Restored ${year} quantities.`;
   el.formMsg.className = 'ok';
 }
 
-el.clearYearBtn.addEventListener('click', clearSelectedYear);
+el.clearYearBtn.addEventListener('click', openClearYear);
+el.clearClose.addEventListener('click', closeClearYear);
+el.clearCancel.addEventListener('click', closeClearYear);
+el.clearModal.addEventListener('click', e => { if (e.target === el.clearModal) closeClearYear(); });
+el.clearConfirmInput.addEventListener('input', () => {
+  el.clearConfirm.disabled = el.clearConfirmInput.value.trim() !== clearYearKey;
+});
+el.clearConfirmInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !el.clearConfirm.disabled) {
+    e.preventDefault();
+    confirmClearYear();
+  }
+});
+el.clearConfirm.addEventListener('click', confirmClearYear);
+el.undoBtn.addEventListener('click', undoClearYear);
+el.undoClose.addEventListener('click', () => { hideUndoToast(); clearSnapshot = null; });
 
 el.addForm.addEventListener('submit', e => {
   e.preventDefault();
@@ -2905,6 +3034,7 @@ document.addEventListener('keydown', e => {
   if (state.historyTicker) closeHistory();
   else if (!el.reconcileModal.hidden) closeReconcile();
   else if (!el.importModal.hidden) closeImport();
+  else if (!el.clearModal.hidden) closeClearYear();
   else if (!el.caModal.hidden) closeCaModal();
   else if (state.coachOpen) closeCoach();
   else if (state.insightOpen) closeInsight();

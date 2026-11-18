@@ -18,7 +18,7 @@
         <label class="year-label">Year
           <select id="year-filter" title="Filter the table and income by year. The new calendar year appears automatically on 1 January."></select>
         </label>
-        <button id="clear-year" class="danger" title="Set every saved quarter quantity for the selected year to 0 — use this to remove copied or incorrect data">🧹 Clear year</button>
+        <button id="clear-year" class="danger" title="Reset saved quarter quantities for the selected year. Opens a confirmation with the impact, requires typing the year, and offers a 20-second undo.">🧹 Reset year…</button>
         <button id="import-btn" title="Bulk-load quarterly quantities from a spreadsheet. Rows whose stock is already in the tracker are skipped.">📥 Import</button>
         <button id="analysis-btn" title="Open portfolio analysis powered by local ChromaDB">📊 Analysis</button>
         <button id="coach-btn" title="Portfolio briefing: tasks and dividend calendar from local data" class="has-badge">📋 Briefing<span class="header-badge" id="coach-badge" hidden aria-label="Urgent coach items"></span></button>
@@ -137,6 +137,31 @@
         <button class="icon-btn modal-close" id="history-close" title="Close dividend history (Esc)" aria-label="Close dividend history">✕</button>
       </div>
       <div class="modal-body" id="history-body"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="clear-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="clear-title">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title" id="clear-title">🧹 Reset quarter quantities</div>
+          <div class="modal-sub" id="clear-sub"></div>
+        </div>
+        <button class="icon-btn modal-close" id="clear-close" title="Close reset dialog (Esc)" aria-label="Close reset dialog">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="clear-impact" class="clear-impact"></div>
+        <label class="clear-confirm-label">Type <strong id="clear-year-token"></strong> to confirm
+          <input id="clear-confirm-input" type="text" autocomplete="off" spellcheck="false" inputmode="numeric" title="Type the selected year exactly">
+        </label>
+        <div class="import-hint">Income and next-year projections for this year will read zero
+          until you enter quantities again. Nothing else changes. You can undo for 20 seconds
+          after confirming.</div>
+        <div class="import-actions">
+          <button type="button" id="clear-confirm" class="danger-solid" disabled>Reset</button>
+          <button type="button" class="secondary" id="clear-cancel">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -314,6 +339,11 @@
   <script>
     window.__INITIAL__ = {{ initial_state | tojson }};
   </script>
+  <div id="undo-toast" class="undo-toast" hidden role="status" aria-live="polite">
+    <span id="undo-text"></span>
+    <button type="button" id="undo-btn" title="Restore the quantities from before the reset">Undo</button>
+    <button type="button" class="icon-btn" id="undo-close" aria-label="Dismiss undo offer" title="Dismiss">✕</button>
+  </div>
   <script src="{{ url_for('static', filename='app.js') }}?v={{ asset_js_ver }}"></script>
 </body>
 </html>

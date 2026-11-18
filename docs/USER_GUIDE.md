@@ -97,12 +97,22 @@ Select a specific year. Each stock has four quantity cells: Q1, Q2, Q3, Q4.
 The **TOTAL DIVIDEND** column is per share and ignores quantity. **Annual
 income** applies your quarterly quantities to those same payouts.
 
-### Clear a year
+### Reset a year
 
-Select a year and click **🧹 Clear year** to set every saved quantity for that
-year to `0`. This is useful after copying a spreadsheet with the wrong values.
-It asks for confirmation and cannot be undone. The all-years view cannot be
-cleared.
+Select a calendar year and click **🧹 Reset year…** to set every saved quantity
+for that year to `0`. This is useful after copying a spreadsheet with the wrong
+values. The dialog is deliberately hard to trigger by accident:
+
+- It shows the **impact first** — how many stocks and non-zero quarter cells
+  change, and how much income for that year disappears.
+- The confirm button stays disabled until you **type the year** (`2026`).
+- After confirming, an **Undo** toast stays for 20 seconds and restores the
+  previous quantities in one click.
+- Stocks that are already zero are not counted, so the numbers reflect the real
+  change.
+
+Only the selected calendar year is affected; other years are untouched. The
+all-years and FY views cannot be reset.
 
 ## Table columns
 

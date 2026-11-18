@@ -16,6 +16,20 @@ button:disabled { opacity: 0.6; cursor: default; }
 button.danger { background: #3a3a3c; color: #ff6961; }
 button.danger:hover { background: #48484a; }
 button.danger:disabled { opacity: 0.4; cursor: default; }
+button.danger-solid { background: #ff6961; color: #1c1c1e; font-weight: 700; }
+button.danger-solid:hover { background: #ff8a84; }
+button.danger-solid:disabled { opacity: 0.4; cursor: default; }
+.clear-impact { background: rgba(255, 105, 97, 0.08); border: 1px solid rgba(255, 105, 97, 0.35); border-radius: 12px; padding: 12px 14px; margin: 6px 0 14px; }
+.clear-impact-list { list-style: none; display: grid; gap: 6px; font-size: 13px; color: #f5f5f7; }
+.clear-impact-list strong { color: #ff6961; }
+.clear-impact-names { margin-top: 10px; font-size: 11.5px; color: #8e8e93; line-height: 1.5; word-break: break-word; }
+.clear-confirm-label { display: block; font-size: 13px; color: #d1d1d6; margin-bottom: 6px; }
+.clear-confirm-label strong { color: #ffd60a; letter-spacing: 0.5px; }
+#clear-confirm-input { width: 120px; margin-left: 8px; background: #1c1c1e; border: 1px solid #48484a; border-radius: 8px; padding: 7px 10px; color: #fff; font-size: 13px; }
+#clear-confirm-input:focus { outline: none; border-color: #ff6961; }
+.undo-toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 12px; background: #2c2c2e; border: 1px solid #48484a; border-radius: 12px; padding: 10px 14px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); font-size: 13px; color: #f5f5f7; max-width: calc(100vw - 32px); }
+.undo-toast[hidden] { display: none; }
+.undo-toast button { padding: 6px 12px; font-size: 12px; }
 
 .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 18px 0; }
 .stat-card { background: #2c2c2e; border-radius: 14px; padding: 14px 16px; }

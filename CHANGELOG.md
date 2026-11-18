@@ -66,6 +66,10 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- **Safer year reset.** The old “Clear year” button is now **Reset year…**: a
+  dialog shows which stocks, non-zero quarter cells and income are affected,
+  the confirm button stays disabled until you type the year, and a 20-second
+  **Undo** restores the previous quantities. Other years are untouched.
 - **Narrow-screen layout.** On phones and small windows the controls and summary
   cards reflow, the table scrolls horizontally with a sticky header and a pinned
   stock column, and a swipe hint appears above it.
