@@ -26,6 +26,9 @@ are included in this repository.*
 - **Actionable fetch errors** — network, rate-limit, missing-history and
   ticker-format failures explain what happened, offer Retry, and can copy a
   debug report.
+- **Safe year reset** — the 🧹 **Reset year…** dialog shows the impact (affected
+  stocks, non-zero quarter cells, income that disappears), requires typing the
+  year to confirm, and offers a 20-second Undo. Other years are untouched.
 - **Small-screen friendly** — the table scrolls horizontally with a sticky
   header and pinned stock column, and controls reflow for narrow layouts.
 - **Quarterly quantities** so income follows the shares you actually held in
