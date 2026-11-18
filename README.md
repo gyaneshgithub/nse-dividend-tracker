@@ -186,7 +186,9 @@ python scripts/check_ci.py      # latest CI run on the current branch must be gr
 ```
 
 The full preflight gate runs, in order: lint, tests, smoke test, repository
-audit, documentation check, CI status.
+audit, documentation check, CI status. A run that is still queued or in
+progress is reported as pending and does not fail the gate; a finished run must
+be `success`.
 
 ### Pre-commit and pre-push checks
 

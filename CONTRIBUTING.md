@@ -32,7 +32,7 @@ python scripts/check_docs.py
 python scripts/check_ci.py      # latest CI run on the current branch must be green
 ```
 
-All six must pass. Install the hooks once per clone with
+All six must pass (an in-progress run counts as pending). Install the hooks once per clone with
 `python scripts/install_hooks.py`; after that `git commit` runs lint and tests,
 and `git push` also runs the smoke test, privacy audit, documentation check and
 CI status check. CI also runs on Windows and macOS, so avoid POSIX-only paths,

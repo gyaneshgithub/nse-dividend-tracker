@@ -108,7 +108,8 @@ python scripts/check_docs.py
 python scripts/check_ci.py      # latest CI run on the current branch must be green
 ```
 
-`python scripts/install_hooks.py` installs the same gate as Git hooks, so
+A run that is queued or in progress is treated as pending; a finished run must
+be `success`. `python scripts/install_hooks.py` installs the same gate as Git hooks, so
 commits and pushes are checked even when a change is made outside OpenCode.
 
 Report what you changed, what you tested, and any remaining risk. Do not claim a

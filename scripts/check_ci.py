@@ -6,9 +6,12 @@ Usage:
     python scripts/check_ci.py <branch>
 
 Returns 0 when the latest run of the ``CI`` workflow on that branch concluded
-``success``, and 1 otherwise. Returns 0 with a note when the GitHub CLI is
-unavailable or authenticated session is missing, so a local push is never
-blocked by an infrastructure hiccup.
+``success``, and 1 when it concluded anything else. A run that is still queued
+or in progress has no verdict yet, so it is reported as pending and does not
+block: right after a push the hook would otherwise fail until CI finishes.
+Returns 0 with a note when the GitHub CLI is unavailable or the authenticated
+session is missing, so a local push is never blocked by an infrastructure
+hiccup.
 
 This is the same check behind the README's CI badge.
 """
@@ -37,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
             "--limit",
             "1",
             "--json",
-            "conclusion",
+            "status,conclusion",
         ],
         cwd=ROOT,
         capture_output=True,
@@ -51,9 +54,14 @@ def main(argv: list[str] | None = None) -> int:
     if not runs:
         print(f"CI check skipped (no CI runs found for branch {branch}).")
         return 0
-    conclusion = runs[0].get("conclusion")
+    latest = runs[0]
+    status = str(latest.get("status") or "")
+    if status in {"queued", "in_progress", "requested", "waiting", "pending"}:
+        print(f"CI check pending: latest run on {branch} is {status.replace('_', ' ')}.")
+        return 0
+    conclusion = latest.get("conclusion")
     if conclusion != "success":
-        print(f"CI check failed: latest CI run on {branch} concluded {conclusion}.")
+        print(f"CI check failed: latest CI run on {branch} concluded {conclusion or status or 'unknown'}.")
         return 1
     print(f"CI check passed: latest CI run on {branch} concluded success.")
     return 0
